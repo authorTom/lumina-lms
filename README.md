@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lumina LMS
 
-## Getting Started
+A modern, self-contained learning management system built with Next.js (App Router), TypeScript, Tailwind CSS, and SQLite. No external services required — the database is a local file created and seeded automatically on first run.
 
-First, run the development server:
+## Quick start
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. The SQLite database (`data/lms.db`) is created and seeded with demo courses and users on first request.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Demo accounts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+All demo accounts use the password `password123`:
 
-## Learn More
+| Email | Role |
+| --- | --- |
+| `student@lms.dev` | Student (enrolled in two courses with some progress) |
+| `sarah@lms.dev` | Instructor (owns two courses) |
+| `james@lms.dev` | Instructor (owns two courses) |
+| `admin@lms.dev` | Admin |
 
-To learn more about Next.js, take a look at the following resources:
+## Features
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Auth & roles** — email/password accounts with signed-cookie sessions; student, instructor, and admin roles.
+- **Course catalog** — search, category filters, and course detail pages with a full content outline.
+- **Learning experience** — lesson player with a course sidebar, markdown lesson content, optional YouTube/Vimeo embeds, mark-complete tracking, and prev/next navigation.
+- **Quizzes** — auto-graded multiple-choice quizzes per module with pass thresholds, per-question feedback, and attempt history. Correct answers never leave the server before submission.
+- **Student dashboard** — enrolled courses, progress bars, and completion stats.
+- **Instructor studio** — create courses, add modules/lessons/quizzes, edit lesson content, publish/unpublish, and view per-student progress.
+- **Admin** — platform stats, user role management, and user deletion.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Architecture
 
-## Deploy on Vercel
+- `lib/db.ts` — SQLite connection, schema migration, and first-run seeding
+- `lib/auth.ts` — HMAC-signed cookie sessions and role guards
+- `lib/data.ts` — typed read queries
+- `lib/actions.ts` — server actions for every mutation (auth, enrollment, progress, quiz grading, authoring, admin)
+- `app/` — App Router pages; server components fetch data directly, small client components handle interactivity
+- `components/` — shared UI, including a dependency-free markdown renderer for lesson content
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Set `SESSION_SECRET` in the environment for production deployments.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Production build
+
+```bash
+npm run build
+npm start
+```
