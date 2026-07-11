@@ -18,8 +18,24 @@ export function CourseCard({
       href={href ?? `/courses/${course.id}`}
       className="card group flex flex-col overflow-hidden transition-shadow hover:shadow-md"
     >
-      <div className={`flex h-28 items-end p-4 ${bannerClass(course.color)}`}>
-        <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium text-white backdrop-blur">
+      <div
+        className={`relative flex h-28 items-end p-4 ${
+          course.image ? "bg-zinc-200" : bannerClass(course.color)
+        }`}
+      >
+        {course.image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`/media/courses/${course.image}`}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
+        <span
+          className={`relative rounded-full px-2.5 py-0.5 text-xs font-medium text-white backdrop-blur ${
+            course.image ? "bg-black/45" : "bg-white/20"
+          }`}
+        >
           {course.category}
         </span>
       </div>

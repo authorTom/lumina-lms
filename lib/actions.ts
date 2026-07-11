@@ -15,6 +15,7 @@ import {
   scormPackageUsageCount,
 } from "./data";
 import { deleteScormFiles, importScormPackage, listOrphanedScormDirs } from "./scorm";
+import { deleteCourseImage, saveCourseImage } from "./media";
 
 export interface FormState {
   error?: string;
@@ -181,6 +182,29 @@ async function requireCourseOwner(courseId: number) {
   return user;
 }
 
+// Resolves the banner choice (solid colour vs uploaded image) from the course
+// form. Returns the image filename to store (null = use the colour), handling
+// old-file cleanup when the image is replaced or cleared.
+async function resolveBanner(
+  formData: FormData,
+  existing: string | null
+): Promise<{ image: string | null } | { error: string }> {
+  const bannerType = String(formData.get("banner_type") ?? "color");
+  if (bannerType !== "image") {
+    deleteCourseImage(existing);
+    return { image: null };
+  }
+  const file = formData.get("image");
+  if (file instanceof File && file.size > 0) {
+    const saved = await saveCourseImage(file);
+    if ("error" in saved) return saved;
+    deleteCourseImage(existing);
+    return { image: saved.name };
+  }
+  if (existing) return { image: existing }; // keep the current image
+  return { error: "Please choose an image, or switch back to a solid colour." };
+}
+
 export async function createCourse(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser("instructor", "admin");
   const title = String(formData.get("title") ?? "").trim();
@@ -189,32 +213,47 @@ export async function createCourse(_prev: FormState, formData: FormData): Promis
   const color = String(formData.get("color") ?? "indigo");
 
   if (!title) return { error: "Please enter a course title." };
+  const banner = await resolveBanner(formData, null);
+  if ("error" in banner) return banner;
 
   const result = getDb()
     .prepare(
-      "INSERT INTO courses (title, description, category, color, instructor_id) VALUES (?, ?, ?, ?, ?)"
+      "INSERT INTO courses (title, description, category, color, image, instructor_id) VALUES (?, ?, ?, ?, ?, ?)"
     )
-    .run(title, description, category, color, user.id);
+    .run(title, description, category, color, banner.image, user.id);
   redirect(`/instructor/courses/${result.lastInsertRowid}`);
 }
 
-export async function updateCourse(courseId: number, formData: FormData) {
+export async function updateCourse(_prev: FormState, formData: FormData): Promise<FormState> {
+  const courseId = Number(formData.get("course_id"));
+  if (!Number.isInteger(courseId)) return { error: "Invalid course." };
   await requireCourseOwner(courseId);
+
   const title = String(formData.get("title") ?? "").trim();
-  if (!title) return;
+  if (!title) return { error: "Please enter a course title." };
+
+  const existing = getDb()
+    .prepare("SELECT image FROM courses WHERE id = ?")
+    .get(courseId) as { image: string | null };
+  const banner = await resolveBanner(formData, existing.image);
+  if ("error" in banner) return banner;
+
   getDb()
     .prepare(
-      "UPDATE courses SET title = ?, description = ?, category = ?, color = ? WHERE id = ?"
+      "UPDATE courses SET title = ?, description = ?, category = ?, color = ?, image = ? WHERE id = ?"
     )
     .run(
       title,
       String(formData.get("description") ?? "").trim(),
       String(formData.get("category") ?? "General").trim() || "General",
       String(formData.get("color") ?? "indigo"),
+      banner.image,
       courseId
     );
   revalidatePath(`/instructor/courses/${courseId}`);
   revalidatePath(`/courses/${courseId}`);
+  revalidatePath("/courses");
+  return { ok: true };
 }
 
 export async function togglePublish(courseId: number) {
@@ -246,7 +285,13 @@ export async function restoreCourse(courseId: number) {
 
 export async function purgeCourse(courseId: number) {
   await requireCourseOwner(courseId);
-  getDb().prepare("DELETE FROM courses WHERE id = ? AND deleted_at IS NOT NULL").run(courseId);
+  const db = getDb();
+  const row = db
+    .prepare("SELECT image FROM courses WHERE id = ? AND deleted_at IS NOT NULL")
+    .get(courseId) as { image: string | null } | undefined;
+  if (!row) return;
+  db.prepare("DELETE FROM courses WHERE id = ? AND deleted_at IS NOT NULL").run(courseId);
+  deleteCourseImage(row.image);
   revalidatePath("/instructor");
 }
 

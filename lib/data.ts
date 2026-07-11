@@ -6,6 +6,7 @@ export interface CourseSummary {
   description: string;
   category: string;
   color: string;
+  image: string | null;
   published: number;
   deleted_at: string | null;
   instructor_id: number;
@@ -127,7 +128,7 @@ export interface ModuleOutline extends Module {
 }
 
 const COURSE_SUMMARY_SELECT = `
-  SELECT c.id, c.title, c.description, c.category, c.color, c.published,
+  SELECT c.id, c.title, c.description, c.category, c.color, c.image, c.published,
          c.deleted_at, c.instructor_id, u.name AS instructor_name,
          (SELECT COUNT(*) FROM lessons l JOIN modules m ON m.id = l.module_id WHERE m.course_id = c.id) AS lesson_count,
          (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = c.id) AS student_count,

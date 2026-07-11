@@ -10,7 +10,6 @@ import {
 } from "@/lib/data";
 import { requireUser } from "@/lib/auth";
 import {
-  updateCourse,
   togglePublish,
   deleteCourse,
   addModule,
@@ -23,7 +22,7 @@ import {
   deleteQuestion,
   attachScormLesson,
 } from "@/lib/actions";
-import { CourseFields } from "@/components/course-fields";
+import { EditCourseForm } from "@/components/edit-course-form";
 import { ContentEditor } from "@/components/content-editor";
 import { ScormUploadForm } from "@/components/scorm-upload-form";
 import { ConfirmButton } from "@/components/confirm-button";
@@ -87,10 +86,9 @@ export default async function ManageCoursePage({
         <summary className="cursor-pointer px-6 py-4 font-medium text-zinc-900 hover:bg-zinc-50">
           Edit course details
         </summary>
-        <form action={updateCourse.bind(null, courseId)} className="space-y-4 border-t border-zinc-100 p-6">
-          <CourseFields course={course} />
-          <button className="btn-primary">Save changes</button>
-        </form>
+        <div className="border-t border-zinc-100 p-6">
+          <EditCourseForm course={course} />
+        </div>
       </details>
 
       {/* Curriculum */}

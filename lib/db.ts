@@ -50,6 +50,7 @@ function migrate(db: Database.Database) {
       category TEXT NOT NULL DEFAULT 'General',
       level TEXT NOT NULL DEFAULT 'Beginner' CHECK (level IN ('Beginner','Intermediate','Advanced')),
       color TEXT NOT NULL DEFAULT 'indigo',
+      image TEXT,
       instructor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       published INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -171,6 +172,12 @@ function migrate(db: Database.Database) {
   const packageCols = db.prepare("PRAGMA table_info(scorm_packages)").all() as { name: string }[];
   if (!packageCols.some((c) => c.name === "size_bytes")) {
     db.exec("ALTER TABLE scorm_packages ADD COLUMN size_bytes INTEGER NOT NULL DEFAULT 0");
+  }
+
+  // Migrate databases created before course images existed.
+  const imgCols = db.prepare("PRAGMA table_info(courses)").all() as { name: string }[];
+  if (!imgCols.some((c) => c.name === "image")) {
+    db.exec("ALTER TABLE courses ADD COLUMN image TEXT");
   }
 
   const userCount = db.prepare("SELECT COUNT(*) AS n FROM users").get() as { n: number };

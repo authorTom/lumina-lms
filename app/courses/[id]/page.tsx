@@ -38,8 +38,23 @@ export default async function CoursePage({
 
   return (
     <div>
-      <div className={`${bannerClass(course.color)} text-white`}>
-        <div className="mx-auto max-w-6xl px-4 py-12">
+      <div
+        className={`relative text-white ${
+          course.image ? "bg-zinc-900" : bannerClass(course.color)
+        }`}
+      >
+        {course.image && (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/media/courses/${course.image}`}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/55" />
+          </>
+        )}
+        <div className="relative mx-auto max-w-6xl px-4 py-12">
           <p className="text-sm font-medium text-white/80">{course.category}</p>
           <h1 className="mt-1 max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">
             {course.title}
