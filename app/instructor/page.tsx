@@ -8,9 +8,14 @@ import { ConfirmButton } from "@/components/confirm-button";
 
 export const metadata: Metadata = { title: "Courses" };
 
-export default async function CoursesAdminPage() {
+export default async function CoursesAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const user = await requireUser("instructor", "admin");
-  const courses = listAllCourses();
+  const { q } = await searchParams;
+  const courses = listAllCourses(q);
   const deleted = listDeletedCourses(user.id, user.role === "admin");
   const mine = courses.filter((c) => c.instructor_id === user.id).length;
 
@@ -20,7 +25,8 @@ export default async function CoursesAdminPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Courses</h1>
           <p className="mt-1 text-zinc-500">
-            {courses.length} course{courses.length === 1 ? "" : "s"} on the platform
+            {courses.length} course{courses.length === 1 ? "" : "s"}
+            {q ? ` matching “${q}”` : " on the platform"}
             {user.role === "instructor" ? ` · ${mine} taught by you` : ""}
           </p>
         </div>
@@ -34,12 +40,42 @@ export default async function CoursesAdminPage() {
         </div>
       </div>
 
+      <form action="/instructor" className="mt-6 flex max-w-md gap-2">
+        <input
+          type="search"
+          name="q"
+          defaultValue={q ?? ""}
+          placeholder="Search by title, category, or instructor…"
+          className="input"
+          aria-label="Search courses"
+        />
+        <button type="submit" className="btn-secondary shrink-0">
+          Search
+        </button>
+        {q && (
+          <Link href="/instructor" className="btn-secondary shrink-0">
+            Clear
+          </Link>
+        )}
+      </form>
+
       {courses.length === 0 ? (
         <div className="card mt-8 p-12 text-center">
-          <p className="text-zinc-600">No courses yet.</p>
-          <Link href="/instructor/courses/new" className="btn-primary mt-4">
-            Create the first course
-          </Link>
+          {q ? (
+            <p className="text-zinc-600">
+              No courses match “{q}”.{" "}
+              <Link href="/instructor" className="font-medium text-indigo-600">
+                Clear search
+              </Link>
+            </p>
+          ) : (
+            <>
+              <p className="text-zinc-600">No courses yet.</p>
+              <Link href="/instructor/courses/new" className="btn-primary mt-4">
+                Create the first course
+              </Link>
+            </>
+          )}
         </div>
       ) : (
         <div className="card mt-8 overflow-x-auto">

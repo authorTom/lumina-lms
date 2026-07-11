@@ -17,12 +17,12 @@ const ROLE_BADGE: Record<string, string> = {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ group?: string }>;
+  searchParams: Promise<{ group?: string; q?: string }>;
 }) {
   const admin = await requireUser("admin");
-  const { group } = await searchParams;
+  const { group, q } = await searchParams;
   const groupId = group ? Number(group) : undefined;
-  const users = listUsers(groupId);
+  const users = listUsers(groupId, q);
   const groups = listGroups();
   const stats = platformStats();
   const activeGroup = groups.find((g) => g.id === groupId);
@@ -111,16 +111,31 @@ export default async function AdminPage({
       </div>
 
       {/* Users */}
-      <div className="mt-10 flex items-end justify-between">
+      <div className="mt-10 flex flex-wrap items-end justify-between gap-3">
         <h2 className="text-xl font-semibold tracking-tight text-zinc-900">
           Users ({users.length}){activeGroup ? ` in ${activeGroup.name}` : ""}
+          {q ? ` matching “${q}”` : ""}
         </h2>
-        {activeGroup && (
+        {(activeGroup || q) && (
           <Link href="/admin" className="text-sm font-medium text-indigo-600 hover:text-indigo-800">
             Show all users
           </Link>
         )}
       </div>
+      <form action="/admin" className="mt-3 flex max-w-md gap-2">
+        {groupId && <input type="hidden" name="group" value={groupId} />}
+        <input
+          type="search"
+          name="q"
+          defaultValue={q ?? ""}
+          placeholder="Search users by name or email…"
+          className="input"
+          aria-label="Search users"
+        />
+        <button type="submit" className="btn-secondary shrink-0">
+          Search
+        </button>
+      </form>
       <div className="card mt-4 overflow-x-auto">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead>

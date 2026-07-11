@@ -358,7 +358,17 @@ const ADMIN_USER_SELECT = `
   FROM users u
 `;
 
-export function listAllCourses(): CourseSummary[] {
+export function listAllCourses(search?: string): CourseSummary[] {
+  if (search) {
+    const like = `%${search}%`;
+    return getDb()
+      .prepare(
+        `${COURSE_SUMMARY_SELECT}
+         WHERE c.deleted_at IS NULL AND (c.title LIKE ? OR c.category LIKE ? OR u.name LIKE ?)
+         ORDER BY c.created_at DESC`
+      )
+      .all(like, like, like) as CourseSummary[];
+  }
   return getDb()
     .prepare(`${COURSE_SUMMARY_SELECT} WHERE c.deleted_at IS NULL ORDER BY c.created_at DESC`)
     .all() as CourseSummary[];
@@ -374,19 +384,15 @@ export function listDeletedCourses(userId: number, isAdmin: boolean): CourseSumm
     .all(...(isAdmin ? [] : [userId])) as CourseSummary[];
 }
 
-export function listUsers(groupId?: number): AdminUser[] {
-  if (groupId) {
-    return getDb()
-      .prepare(
-        `${ADMIN_USER_SELECT}
-         JOIN user_group_members f ON f.user_id = u.id AND f.group_id = ?
-         ORDER BY u.created_at DESC`
-      )
-      .all(groupId) as AdminUser[];
-  }
+export function listUsers(groupId?: number, search?: string): AdminUser[] {
+  const joins = groupId ? "JOIN user_group_members f ON f.user_id = u.id AND f.group_id = ?" : "";
+  const where = search ? "WHERE (u.name LIKE ? OR u.email LIKE ?)" : "";
+  const params: unknown[] = [];
+  if (groupId) params.push(groupId);
+  if (search) params.push(`%${search}%`, `%${search}%`);
   return getDb()
-    .prepare(`${ADMIN_USER_SELECT} ORDER BY u.created_at DESC`)
-    .all() as AdminUser[];
+    .prepare(`${ADMIN_USER_SELECT} ${joins} ${where} ORDER BY u.created_at DESC`)
+    .all(...params) as AdminUser[];
 }
 
 export function getAdminUser(id: number): AdminUser | undefined {
