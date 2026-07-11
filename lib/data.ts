@@ -237,6 +237,40 @@ export function completedLessonIds(userId: number, courseId: number): Set<number
   return new Set(rows.map((r) => r.lesson_id));
 }
 
+export interface CourseCompletion {
+  id: number;
+  course_id: number | null;
+  course_title: string;
+  completed_at: string;
+}
+
+export function listCompletions(userId: number): CourseCompletion[] {
+  return getDb()
+    .prepare(
+      "SELECT id, course_id, course_title, completed_at FROM course_completions WHERE user_id = ? ORDER BY completed_at DESC"
+    )
+    .all(userId) as CourseCompletion[];
+}
+
+// Called whenever a lesson is marked complete: if that was the last one,
+// log a permanent training record (kept even if progress is later undone
+// or the course is deleted).
+export function recordCompletionIfFinished(userId: number, courseId: number) {
+  const db = getDb();
+  const total = (
+    db
+      .prepare(
+        "SELECT COUNT(*) AS n FROM lessons l JOIN modules m ON m.id = l.module_id WHERE m.course_id = ?"
+      )
+      .get(courseId) as { n: number }
+  ).n;
+  if (total === 0 || countCompletedLessons(userId, courseId) < total) return;
+  db.prepare(
+    `INSERT OR IGNORE INTO course_completions (user_id, course_id, course_title)
+     SELECT ?, id, title FROM courses WHERE id = ?`
+  ).run(userId, courseId);
+}
+
 export function getLesson(lessonId: number):
   | (Lesson & { course_id: number; module_title: string })
   | undefined {

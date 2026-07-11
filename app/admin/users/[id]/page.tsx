@@ -6,6 +6,7 @@ import { deleteUser, setUserDisabled, setUserGroups } from "@/lib/actions";
 import { ConfirmButton } from "@/components/confirm-button";
 import { RoleSelect } from "@/components/role-select";
 import { PasswordPanel, RenameUserForm } from "@/components/admin-user-forms";
+import { TrainingRecord } from "@/components/training-record";
 
 const ROLE_BADGE: Record<string, string> = {
   admin: "bg-rose-100 text-rose-800",
@@ -101,6 +102,16 @@ export default async function ManageUserPage({
             </form>
           )}
         </div>
+      </div>
+
+      {/* Training record */}
+      <div className="card mt-6 p-6">
+        <p className="text-sm font-medium text-zinc-900">Training record</p>
+        <p className="mb-3 text-sm text-zinc-500">
+          Courses this user has completed. Records are permanent — they survive
+          unenrollment and course deletion.
+        </p>
+        <TrainingRecord userId={user.id} emptyText="No completed courses yet." />
       </div>
 
       {/* Password */}

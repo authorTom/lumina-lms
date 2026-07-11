@@ -20,6 +20,10 @@ function createDb(): Database.Database {
 }
 
 function migrate(db: Database.Database) {
+  const hadCompletions = !!db
+    .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='course_completions'")
+    .get();
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -105,6 +109,15 @@ function migrate(db: Database.Database) {
       UNIQUE (user_id, course_id)
     );
 
+    CREATE TABLE IF NOT EXISTS course_completions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      course_id INTEGER REFERENCES courses(id) ON DELETE SET NULL,
+      course_title TEXT NOT NULL,
+      completed_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (user_id, course_id)
+    );
+
     CREATE TABLE IF NOT EXISTS lesson_progress (
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       lesson_id INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
@@ -186,6 +199,29 @@ function migrate(db: Database.Database) {
     db.exec(
       "ALTER TABLE courses ADD COLUMN enrollment_policy TEXT NOT NULL DEFAULT 'open' CHECK (enrollment_policy IN ('open','assigned'))"
     );
+  }
+
+  // Backfill training records for courses finished before completion
+  // logging existed; the date is the last lesson's completion time.
+  if (!hadCompletions) {
+    db.exec(`
+      INSERT OR IGNORE INTO course_completions (user_id, course_id, course_title, completed_at)
+      SELECT e.user_id, c.id, c.title,
+             (SELECT MAX(p.completed_at) FROM lesson_progress p
+              JOIN lessons l ON l.id = p.lesson_id
+              JOIN modules m ON m.id = l.module_id
+              WHERE p.user_id = e.user_id AND m.course_id = c.id)
+      FROM enrollments e
+      JOIN courses c ON c.id = e.course_id
+      WHERE (SELECT COUNT(*) FROM lessons l JOIN modules m ON m.id = l.module_id
+             WHERE m.course_id = c.id) > 0
+        AND (SELECT COUNT(*) FROM lesson_progress p
+             JOIN lessons l ON l.id = p.lesson_id
+             JOIN modules m ON m.id = l.module_id
+             WHERE p.user_id = e.user_id AND m.course_id = c.id)
+          = (SELECT COUNT(*) FROM lessons l JOIN modules m ON m.id = l.module_id
+             WHERE m.course_id = c.id)
+    `);
   }
 
   const userCount = db.prepare("SELECT COUNT(*) AS n FROM users").get() as { n: number };

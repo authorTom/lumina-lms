@@ -12,6 +12,7 @@ import {
   getQuiz,
   getScormPackage,
   isEnrolled,
+  recordCompletionIfFinished,
   scormPackageUsageCount,
 } from "./data";
 import { deleteScormFiles, importScormPackage, listOrphanedScormDirs } from "./scorm";
@@ -138,6 +139,7 @@ export async function toggleLessonComplete(lessonId: number, courseId: number, d
       user.id,
       lessonId
     );
+    recordCompletionIfFinished(user.id, courseId);
   } else {
     db.prepare("DELETE FROM lesson_progress WHERE user_id = ? AND lesson_id = ?").run(
       user.id,
@@ -575,6 +577,7 @@ export async function saveScormData(lessonId: number, cmiJson: string) {
     db.prepare(
       "INSERT OR IGNORE INTO lesson_progress (user_id, lesson_id) VALUES (?, ?)"
     ).run(user.id, lessonId);
+    recordCompletionIfFinished(user.id, lesson.course_id);
     revalidatePath(`/learn/${lesson.course_id}`, "layout");
     revalidatePath("/dashboard");
   }

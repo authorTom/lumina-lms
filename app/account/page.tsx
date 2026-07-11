@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
 import { ChangePasswordForm, ProfileForm } from "@/components/account-forms";
+import { TrainingRecord } from "@/components/training-record";
 
 export const metadata: Metadata = { title: "My account" };
 
@@ -30,6 +31,17 @@ export default async function AccountPage() {
           <p className="text-sm text-zinc-500">{user.email}</p>
         </div>
         <span className={`badge ml-auto ${ROLE_BADGE[user.role]}`}>{user.role}</span>
+      </div>
+
+      <div className="card mt-6 p-6">
+        <h2 className="font-semibold text-zinc-900">Training record</h2>
+        <p className="mt-1 mb-4 text-sm text-zinc-500">
+          Courses you have completed, with the date you finished them.
+        </p>
+        <TrainingRecord
+          userId={user.id}
+          emptyText="Nothing here yet — complete every lesson in a course and it will be recorded."
+        />
       </div>
 
       <div className="card mt-6 p-6">
