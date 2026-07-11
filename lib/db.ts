@@ -39,7 +39,8 @@ function migrate(db: Database.Database) {
       color TEXT NOT NULL DEFAULT 'indigo',
       instructor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       published INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      deleted_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS modules (
@@ -112,6 +113,12 @@ function migrate(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_enrollments_course ON enrollments(course_id);
     CREATE INDEX IF NOT EXISTS idx_attempts_user ON quiz_attempts(user_id, quiz_id);
   `);
+
+  // Migrate databases created before soft-delete existed.
+  const courseCols = db.prepare("PRAGMA table_info(courses)").all() as { name: string }[];
+  if (!courseCols.some((c) => c.name === "deleted_at")) {
+    db.exec("ALTER TABLE courses ADD COLUMN deleted_at TEXT");
+  }
 
   const userCount = db.prepare("SELECT COUNT(*) AS n FROM users").get() as { n: number };
   if (userCount.n === 0) seed(db);

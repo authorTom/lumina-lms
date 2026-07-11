@@ -1,14 +1,17 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { listAllCourses } from "@/lib/data";
+import { listAllCourses, listDeletedCourses } from "@/lib/data";
 import { requireUser } from "@/lib/auth";
+import { restoreCourse, purgeCourse } from "@/lib/actions";
 import { badgeClass } from "@/lib/colors";
+import { ConfirmButton } from "@/components/confirm-button";
 
 export const metadata: Metadata = { title: "Courses" };
 
 export default async function CoursesAdminPage() {
   const user = await requireUser("instructor", "admin");
   const courses = listAllCourses();
+  const deleted = listDeletedCourses(user.id, user.role === "admin");
   const mine = courses.filter((c) => c.instructor_id === user.id).length;
 
   return (
@@ -99,6 +102,44 @@ export default async function CoursesAdminPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {deleted.length > 0 && (
+        <details className="card mt-10 overflow-hidden">
+          <summary className="cursor-pointer px-6 py-4 font-medium text-zinc-900 hover:bg-zinc-50">
+            🗑 Recycle bin ({deleted.length})
+          </summary>
+          <div className="border-t border-zinc-100">
+            <p className="px-6 pt-4 text-sm text-zinc-500">
+              Deleted courses keep all their content and student progress until removed
+              forever. Restoring puts a course back exactly as it was.
+            </p>
+            <ul className="divide-y divide-zinc-100 px-6 py-2">
+              {deleted.map((course) => (
+                <li key={course.id} className="flex flex-wrap items-center gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-zinc-900">{course.title}</p>
+                    <p className="text-xs text-zinc-500">
+                      {course.instructor_name} · {course.lesson_count} lessons ·{" "}
+                      {course.student_count} students · deleted {course.deleted_at?.slice(0, 16)}
+                    </p>
+                  </div>
+                  <div className="ml-auto flex items-center gap-2">
+                    <form action={restoreCourse.bind(null, course.id)}>
+                      <button className="btn-secondary">Restore</button>
+                    </form>
+                    <ConfirmButton
+                      action={purgeCourse.bind(null, course.id)}
+                      message={`Permanently delete “${course.title}”? All modules, lessons, quizzes, enrollments, and student progress will be gone for good. This cannot be undone.`}
+                    >
+                      Delete forever
+                    </ConfirmButton>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
       )}
     </div>
   );

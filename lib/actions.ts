@@ -189,13 +189,30 @@ export async function togglePublish(courseId: number) {
   revalidatePath("/courses");
 }
 
+// Deleting moves a course to the recycle bin; students keep their progress
+// and everything comes back intact on restore.
 export async function deleteCourse(courseId: number, redirectTo: string = "/instructor") {
   await requireCourseOwner(courseId);
-  getDb().prepare("DELETE FROM courses WHERE id = ?").run(courseId);
+  getDb()
+    .prepare("UPDATE courses SET deleted_at = datetime('now') WHERE id = ?")
+    .run(courseId);
   revalidatePath("/instructor");
   revalidatePath("/admin");
   revalidatePath("/courses");
   redirect(redirectTo);
+}
+
+export async function restoreCourse(courseId: number) {
+  await requireCourseOwner(courseId);
+  getDb().prepare("UPDATE courses SET deleted_at = NULL WHERE id = ?").run(courseId);
+  revalidatePath("/instructor");
+  revalidatePath("/courses");
+}
+
+export async function purgeCourse(courseId: number) {
+  await requireCourseOwner(courseId);
+  getDb().prepare("DELETE FROM courses WHERE id = ? AND deleted_at IS NOT NULL").run(courseId);
+  revalidatePath("/instructor");
 }
 
 export async function addModule(courseId: number, formData: FormData) {

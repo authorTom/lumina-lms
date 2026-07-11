@@ -321,12 +321,13 @@ export default async function ManageCoursePage({
         <div>
           <p className="font-medium text-zinc-900">Delete this course</p>
           <p className="text-sm text-zinc-500">
-            Removes all modules, lessons, quizzes, and enrollments. Cannot be undone.
+            Moves the course to the recycle bin. It disappears for students but can be
+            restored — with all content and progress — from the Courses page.
           </p>
         </div>
         <ConfirmButton
           action={deleteCourse.bind(null, courseId)}
-          message={`Permanently delete “${course.title}”? This cannot be undone.`}
+          message={`Move “${course.title}” to the recycle bin? Students will lose access until it's restored.`}
         >
           Delete course
         </ConfirmButton>

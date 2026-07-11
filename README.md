@@ -31,6 +31,7 @@ All demo accounts use the password `password123`:
 - **Student dashboard** — enrolled courses, progress bars, and completion stats.
 - **Instructor studio** — create courses, add modules/lessons/quizzes, edit lesson content, publish/unpublish, and view per-student progress. Lesson content is written in a markdown editor with a formatting toolbar and a live Preview tab that renders exactly like the lesson player.
 - **Staff access** — instructors and admins never enroll: a shared Courses section lists every course on the platform, all content is viewable directly (a banner marks preview mode), and managing remains limited to the owning instructor or an admin.
+- **Recycle bin** — deleting a course soft-deletes it: it vanishes from the catalog and dashboards but keeps all content and student progress, and can be restored or permanently purged from the Courses page (admins see every deleted course, instructors their own).
 - **Admin** — platform stats, user role management, and user deletion.
 
 ## Architecture

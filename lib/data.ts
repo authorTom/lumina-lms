@@ -8,6 +8,7 @@ export interface CourseSummary {
   level: string;
   color: string;
   published: number;
+  deleted_at: string | null;
   instructor_id: number;
   instructor_name: string;
   lesson_count: number;
@@ -66,7 +67,7 @@ export interface ModuleOutline extends Module {
 
 const COURSE_SUMMARY_SELECT = `
   SELECT c.id, c.title, c.description, c.category, c.level, c.color, c.published,
-         c.instructor_id, u.name AS instructor_name,
+         c.deleted_at, c.instructor_id, u.name AS instructor_name,
          (SELECT COUNT(*) FROM lessons l JOIN modules m ON m.id = l.module_id WHERE m.course_id = c.id) AS lesson_count,
          (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = c.id) AS student_count,
          (SELECT COALESCE(SUM(l.duration_minutes), 0) FROM lessons l JOIN modules m ON m.id = l.module_id WHERE m.course_id = c.id) AS total_minutes
@@ -75,7 +76,7 @@ const COURSE_SUMMARY_SELECT = `
 `;
 
 export function listPublishedCourses(search?: string, category?: string): CourseSummary[] {
-  const clauses = ["c.published = 1"];
+  const clauses = ["c.published = 1", "c.deleted_at IS NULL"];
   const params: unknown[] = [];
   if (search) {
     clauses.push("(c.title LIKE ? OR c.description LIKE ?)");
@@ -92,14 +93,16 @@ export function listPublishedCourses(search?: string, category?: string): Course
 
 export function listCategories(): string[] {
   const rows = getDb()
-    .prepare("SELECT DISTINCT category FROM courses WHERE published = 1 ORDER BY category")
+    .prepare(
+      "SELECT DISTINCT category FROM courses WHERE published = 1 AND deleted_at IS NULL ORDER BY category"
+    )
     .all() as { category: string }[];
   return rows.map((r) => r.category);
 }
 
 export function getCourse(id: number): CourseSummary | undefined {
   return getDb()
-    .prepare(`${COURSE_SUMMARY_SELECT} WHERE c.id = ?`)
+    .prepare(`${COURSE_SUMMARY_SELECT} WHERE c.id = ? AND c.deleted_at IS NULL`)
     .get(id) as CourseSummary | undefined;
 }
 
@@ -137,6 +140,7 @@ export function getEnrolledCourses(userId: number): CourseWithProgress[] {
     .prepare(
       `${COURSE_SUMMARY_SELECT}
        JOIN enrollments e ON e.course_id = c.id AND e.user_id = ?
+       WHERE c.deleted_at IS NULL
        ORDER BY e.enrolled_at DESC`
     )
     .all(userId)
@@ -240,7 +244,9 @@ export function bestAttempts(userId: number, courseId: number): Map<number, Quiz
 
 export function coursesByInstructor(instructorId: number): CourseSummary[] {
   return getDb()
-    .prepare(`${COURSE_SUMMARY_SELECT} WHERE c.instructor_id = ? ORDER BY c.created_at DESC`)
+    .prepare(
+      `${COURSE_SUMMARY_SELECT} WHERE c.instructor_id = ? AND c.deleted_at IS NULL ORDER BY c.created_at DESC`
+    )
     .all(instructorId) as CourseSummary[];
 }
 
@@ -281,8 +287,18 @@ export interface AdminUser {
 
 export function listAllCourses(): CourseSummary[] {
   return getDb()
-    .prepare(`${COURSE_SUMMARY_SELECT} ORDER BY c.created_at DESC`)
+    .prepare(`${COURSE_SUMMARY_SELECT} WHERE c.deleted_at IS NULL ORDER BY c.created_at DESC`)
     .all() as CourseSummary[];
+}
+
+// Recycle bin: admins see every deleted course, instructors only their own.
+export function listDeletedCourses(userId: number, isAdmin: boolean): CourseSummary[] {
+  const clause = isAdmin ? "" : "AND c.instructor_id = ?";
+  return getDb()
+    .prepare(
+      `${COURSE_SUMMARY_SELECT} WHERE c.deleted_at IS NOT NULL ${clause} ORDER BY c.deleted_at DESC`
+    )
+    .all(...(isAdmin ? [] : [userId])) as CourseSummary[];
 }
 
 export function listUsers(): AdminUser[] {
@@ -301,7 +317,7 @@ export function platformStats() {
   const one = (sql: string) => (db.prepare(sql).get() as { n: number }).n;
   return {
     users: one("SELECT COUNT(*) AS n FROM users"),
-    courses: one("SELECT COUNT(*) AS n FROM courses WHERE published = 1"),
+    courses: one("SELECT COUNT(*) AS n FROM courses WHERE published = 1 AND deleted_at IS NULL"),
     enrollments: one("SELECT COUNT(*) AS n FROM enrollments"),
     lessonsCompleted: one("SELECT COUNT(*) AS n FROM lesson_progress"),
   };
