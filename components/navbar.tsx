@@ -47,7 +47,13 @@ export async function Navbar() {
         <div className="ml-auto hidden items-center gap-2 sm:flex">
           {user ? (
             <>
-              <span className="text-sm text-zinc-500">{user.name}</span>
+              <Link
+                href="/account"
+                className="rounded-lg px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                title="My account"
+              >
+                {user.name}
+              </Link>
               <form action={logout}>
                 <button className="btn-secondary">Sign out</button>
               </form>
@@ -70,9 +76,14 @@ export async function Navbar() {
           <div className="absolute right-0 mt-2 flex w-56 flex-col gap-1 rounded-xl bg-white p-2 shadow-lg ring-1 ring-zinc-200">
             <NavLinks role={user?.role} />
             {user ? (
-              <form action={logout} className="mt-1 border-t border-zinc-100 pt-2">
-                <button className="btn-secondary w-full">Sign out ({user.name})</button>
-              </form>
+              <div className="mt-1 space-y-1 border-t border-zinc-100 pt-2">
+                <Link href="/account" className="btn-secondary w-full">
+                  My account
+                </Link>
+                <form action={logout}>
+                  <button className="btn-secondary w-full">Sign out ({user.name})</button>
+                </form>
+              </div>
             ) : (
               <div className="mt-1 flex flex-col gap-1 border-t border-zinc-100 pt-2">
                 <Link href="/login" className="btn-secondary">

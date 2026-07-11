@@ -18,6 +18,7 @@ import { deleteScormFiles, importScormPackage, listOrphanedScormDirs } from "./s
 
 export interface FormState {
   error?: string;
+  ok?: boolean;
 }
 
 // --- Auth ---
@@ -67,6 +68,29 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
 export async function logout() {
   await destroySession();
   redirect("/");
+}
+
+// --- Account self-service ---
+
+export async function changePassword(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const current = String(formData.get("current_password") ?? "");
+  const next = String(formData.get("new_password") ?? "");
+  const confirm = String(formData.get("confirm_password") ?? "");
+
+  const row = getDb()
+    .prepare("SELECT password_hash FROM users WHERE id = ?")
+    .get(user.id) as { password_hash: string };
+  if (!bcrypt.compareSync(current, row.password_hash)) {
+    return { error: "Your current password is incorrect." };
+  }
+  if (next.length < 8) return { error: "New password must be at least 8 characters." };
+  if (next !== confirm) return { error: "New passwords don't match." };
+
+  getDb()
+    .prepare("UPDATE users SET password_hash = ? WHERE id = ?")
+    .run(bcrypt.hashSync(next, 10), user.id);
+  return { ok: true };
 }
 
 // --- Enrollment & progress ---
