@@ -31,6 +31,9 @@ export default async function CoursesAdminPage({
           </p>
         </div>
         <div className="flex gap-2">
+          <Link href="/instructor/reviews" className="btn-secondary">
+            Reviews
+          </Link>
           <Link href="/instructor/scorm" className="btn-secondary">
             SCORM library
           </Link>

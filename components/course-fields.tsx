@@ -13,9 +13,29 @@ export function CourseFields({ course }: { course?: CourseSummary }) {
         <label htmlFor="description" className="label">Description</label>
         <textarea id="description" name="description" rows={3} defaultValue={course?.description ?? ""} className="input" placeholder="What will students learn?" />
       </div>
-      <div>
-        <label htmlFor="category" className="label">Category</label>
-        <input id="category" name="category" defaultValue={course?.category ?? ""} className="input" placeholder="e.g. Programming" />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="category" className="label">Category</label>
+          <input id="category" name="category" defaultValue={course?.category ?? ""} className="input" placeholder="e.g. Programming" />
+        </div>
+        <div>
+          <label htmlFor="review_months" className="label">Review period</label>
+          <select
+            id="review_months"
+            name="review_months"
+            defaultValue={course?.review_months ?? ""}
+            className="input"
+          >
+            <option value="">No scheduled review</option>
+            <option value="3">Every 3 months</option>
+            <option value="6">Every 6 months</option>
+            <option value="12">Every 12 months</option>
+            <option value="24">Every 24 months</option>
+          </select>
+          <p className="mt-1 text-xs text-zinc-500">
+            The course appears on the review dashboard when a review falls due.
+          </p>
+        </div>
       </div>
       <fieldset className="space-y-3">
         <legend className="label">Header &amp; thumbnail</legend>

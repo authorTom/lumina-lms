@@ -192,6 +192,20 @@ export async function submitQuiz(quizId: number, formData: FormData): Promise<Qu
 
 // --- Instructor: course authoring ---
 
+const REVIEW_PERIODS = [3, 6, 12, 24];
+
+function parseReviewMonths(formData: FormData): number | null {
+  const months = Number(formData.get("review_months"));
+  return REVIEW_PERIODS.includes(months) ? months : null;
+}
+
+// Stamps a course as content-changed; drives "last updated" on the review dashboard.
+function touchCourse(courseId: number) {
+  getDb()
+    .prepare("UPDATE courses SET updated_at = datetime('now') WHERE id = ?")
+    .run(courseId);
+}
+
 async function requireCourseOwner(courseId: number) {
   const user = await requireUser("instructor", "admin");
   const ownerId = getCourseInstructorId(courseId);
@@ -236,9 +250,9 @@ export async function createCourse(_prev: FormState, formData: FormData): Promis
 
   const result = getDb()
     .prepare(
-      "INSERT INTO courses (title, description, category, color, image, instructor_id) VALUES (?, ?, ?, ?, ?, ?)"
+      "INSERT INTO courses (title, description, category, color, image, review_months, instructor_id) VALUES (?, ?, ?, ?, ?, ?, ?)"
     )
-    .run(title, description, category, color, banner.image, user.id);
+    .run(title, description, category, color, banner.image, parseReviewMonths(formData), user.id);
   redirect(`/instructor/courses/${result.lastInsertRowid}`);
 }
 
@@ -258,7 +272,7 @@ export async function updateCourse(_prev: FormState, formData: FormData): Promis
 
   getDb()
     .prepare(
-      "UPDATE courses SET title = ?, description = ?, category = ?, color = ?, image = ? WHERE id = ?"
+      "UPDATE courses SET title = ?, description = ?, category = ?, color = ?, image = ?, review_months = ?, updated_at = datetime('now') WHERE id = ?"
     )
     .run(
       title,
@@ -266,6 +280,7 @@ export async function updateCourse(_prev: FormState, formData: FormData): Promis
       String(formData.get("category") ?? "General").trim() || "General",
       String(formData.get("color") ?? "indigo"),
       banner.image,
+      parseReviewMonths(formData),
       courseId
     );
   revalidatePath(`/instructor/courses/${courseId}`);
@@ -332,6 +347,17 @@ export async function removeEnrollment(userId: number, courseId: number) {
   revalidatePath(`/instructor/courses/${courseId}`);
 }
 
+// Marks a course as reviewed today, resetting its review clock.
+export async function markCourseReviewed(formData: FormData) {
+  const courseId = Number(formData.get("course_id"));
+  if (!Number.isInteger(courseId)) return;
+  await requireCourseOwner(courseId);
+  getDb()
+    .prepare("UPDATE courses SET last_reviewed_at = datetime('now') WHERE id = ?")
+    .run(courseId);
+  revalidatePath("/instructor/reviews");
+}
+
 export async function togglePublish(courseId: number) {
   await requireCourseOwner(courseId);
   getDb().prepare("UPDATE courses SET published = 1 - published WHERE id = ?").run(courseId);
@@ -384,12 +410,14 @@ export async function addModule(courseId: number, formData: FormData) {
     title,
     max.p + 1
   );
+  touchCourse(courseId);
   revalidatePath(`/instructor/courses/${courseId}`);
 }
 
 export async function deleteModule(moduleId: number, courseId: number) {
   await requireCourseOwner(courseId);
   getDb().prepare("DELETE FROM modules WHERE id = ? AND course_id = ?").run(moduleId, courseId);
+  touchCourse(courseId);
   revalidatePath(`/instructor/courses/${courseId}`);
 }
 
@@ -411,6 +439,7 @@ export async function addLesson(moduleId: number, courseId: number, formData: Fo
     Math.max(1, Number(formData.get("duration_minutes")) || 5),
     max.p + 1
   );
+  touchCourse(courseId);
   revalidatePath(`/instructor/courses/${courseId}`);
 }
 
@@ -460,6 +489,7 @@ export async function addScormLesson(
     max.p + 1,
     imported.id
   );
+  touchCourse(courseId);
   revalidatePath(`/instructor/courses/${courseId}`);
   return {};
 }
@@ -529,6 +559,7 @@ export async function attachScormLesson(formData: FormData) {
     max.p + 1,
     packageId
   );
+  touchCourse(courseId);
   revalidatePath(`/instructor/courses/${courseId}`);
 }
 
@@ -601,6 +632,7 @@ export async function updateLesson(lessonId: number, courseId: number, formData:
       Math.max(1, Number(formData.get("duration_minutes")) || 5),
       lessonId
     );
+  touchCourse(courseId);
   revalidatePath(`/instructor/courses/${courseId}`);
   redirect(`/instructor/courses/${courseId}`);
 }
@@ -608,6 +640,7 @@ export async function updateLesson(lessonId: number, courseId: number, formData:
 export async function deleteLesson(lessonId: number, courseId: number) {
   await requireCourseOwner(courseId);
   getDb().prepare("DELETE FROM lessons WHERE id = ?").run(lessonId);
+  touchCourse(courseId);
   revalidatePath(`/instructor/courses/${courseId}`);
 }
 
@@ -617,12 +650,14 @@ export async function createQuiz(moduleId: number, courseId: number, formData: F
   getDb()
     .prepare("INSERT OR IGNORE INTO quizzes (module_id, title) VALUES (?, ?)")
     .run(moduleId, title);
+  touchCourse(courseId);
   revalidatePath(`/instructor/courses/${courseId}`);
 }
 
 export async function deleteQuiz(quizId: number, courseId: number) {
   await requireCourseOwner(courseId);
   getDb().prepare("DELETE FROM quizzes WHERE id = ?").run(quizId);
+  touchCourse(courseId);
   revalidatePath(`/instructor/courses/${courseId}`);
 }
 
@@ -646,12 +681,14 @@ export async function addQuestion(quizId: number, courseId: number, formData: Fo
     "INSERT INTO choices (question_id, text, is_correct, position) VALUES (?, ?, ?, ?)"
   );
   choices.forEach((choice, i) => insertChoice.run(questionId, choice, i === correct ? 1 : 0, i));
+  touchCourse(courseId);
   revalidatePath(`/instructor/courses/${courseId}`);
 }
 
 export async function deleteQuestion(questionId: number, courseId: number) {
   await requireCourseOwner(courseId);
   getDb().prepare("DELETE FROM questions WHERE id = ?").run(questionId);
+  touchCourse(courseId);
   revalidatePath(`/instructor/courses/${courseId}`);
 }
 

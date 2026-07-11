@@ -8,6 +8,7 @@ export interface CourseSummary {
   color: string;
   image: string | null;
   enrollment_policy: "open" | "assigned";
+  review_months: number | null;
   published: number;
   deleted_at: string | null;
   instructor_id: number;
@@ -129,7 +130,7 @@ export interface ModuleOutline extends Module {
 }
 
 const COURSE_SUMMARY_SELECT = `
-  SELECT c.id, c.title, c.description, c.category, c.color, c.image, c.enrollment_policy, c.published,
+  SELECT c.id, c.title, c.description, c.category, c.color, c.image, c.enrollment_policy, c.review_months, c.published,
          c.deleted_at, c.instructor_id, u.name AS instructor_name,
          (SELECT COUNT(*) FROM lessons l JOIN modules m ON m.id = l.module_id WHERE m.course_id = c.id) AS lesson_count,
          (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = c.id) AS student_count,
@@ -422,6 +423,64 @@ export function listAllCourses(search?: string): CourseSummary[] {
   return getDb()
     .prepare(`${COURSE_SUMMARY_SELECT} WHERE c.deleted_at IS NULL ORDER BY c.created_at DESC`)
     .all() as CourseSummary[];
+}
+
+export type ReviewStatus = "overdue" | "due-soon" | "ok" | "unscheduled";
+
+export interface CourseReview {
+  id: number;
+  title: string;
+  instructor_id: number;
+  instructor_name: string;
+  published: number;
+  review_months: number | null;
+  created_at: string;
+  updated_at: string | null;
+  last_reviewed_at: string | null;
+  due_at: Date | null;
+  status: ReviewStatus;
+}
+
+const DUE_SOON_DAYS = 30;
+
+function parseUtc(sqlite: string): Date {
+  return new Date(sqlite.replace(" ", "T") + "Z");
+}
+
+export function reviewDashboard(): CourseReview[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT c.id, c.title, c.instructor_id, u.name AS instructor_name, c.published,
+              c.review_months, c.created_at, c.updated_at, c.last_reviewed_at
+       FROM courses c JOIN users u ON u.id = c.instructor_id
+       WHERE c.deleted_at IS NULL`
+    )
+    .all() as Omit<CourseReview, "due_at" | "status">[];
+
+  const now = Date.now();
+  const reviews = rows.map((row): CourseReview => {
+    if (!row.review_months) {
+      return { ...row, due_at: null, status: "unscheduled" };
+    }
+    // The review clock starts from the last review, or course creation.
+    const base = parseUtc(row.last_reviewed_at ?? row.created_at);
+    const due = new Date(base);
+    due.setUTCMonth(due.getUTCMonth() + row.review_months);
+    const status: ReviewStatus =
+      due.getTime() < now
+        ? "overdue"
+        : due.getTime() < now + DUE_SOON_DAYS * 86400000
+          ? "due-soon"
+          : "ok";
+    return { ...row, due_at: due, status };
+  });
+
+  const order: Record<ReviewStatus, number> = { overdue: 0, "due-soon": 1, ok: 2, unscheduled: 3 };
+  return reviews.sort(
+    (a, b) =>
+      order[a.status] - order[b.status] ||
+      (a.due_at?.getTime() ?? Infinity) - (b.due_at?.getTime() ?? Infinity)
+  );
 }
 
 // Recycle bin: admins see every deleted course, instructors only their own.

@@ -56,6 +56,9 @@ function migrate(db: Database.Database) {
       color TEXT NOT NULL DEFAULT 'indigo',
       image TEXT,
       enrollment_policy TEXT NOT NULL DEFAULT 'open' CHECK (enrollment_policy IN ('open','assigned')),
+      review_months INTEGER,
+      updated_at TEXT,
+      last_reviewed_at TEXT,
       instructor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       published INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -212,6 +215,13 @@ function migrate(db: Database.Database) {
     db.exec(
       "ALTER TABLE courses ADD COLUMN enrollment_policy TEXT NOT NULL DEFAULT 'open' CHECK (enrollment_policy IN ('open','assigned'))"
     );
+  }
+
+  // Migrate databases created before course reviews existed.
+  if (!imgCols.some((c) => c.name === "review_months")) {
+    db.exec("ALTER TABLE courses ADD COLUMN review_months INTEGER");
+    db.exec("ALTER TABLE courses ADD COLUMN updated_at TEXT");
+    db.exec("ALTER TABLE courses ADD COLUMN last_reviewed_at TEXT");
   }
 
   // Backfill training records for courses finished before completion
