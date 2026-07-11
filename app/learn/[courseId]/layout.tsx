@@ -25,11 +25,12 @@ export default async function LearnLayout({
   const course = getCourse(courseId);
   if (!course) notFound();
 
-  // Admins and the owning instructor may view content without enrolling.
+  // Staff (admins and instructors) view content without enrolling.
   const enrolled = isEnrolled(user.id, courseId);
-  const isStaff =
-    user.role === "admin" || getCourseInstructorId(courseId) === user.id;
+  const isStaff = user.role === "admin" || user.role === "instructor";
   if (!enrolled && !isStaff) redirect(`/courses/${courseId}`);
+  const canManage =
+    user.role === "admin" || getCourseInstructorId(courseId) === user.id;
 
   const outline = getCourseOutline(courseId);
   const done = completedLessonIds(user.id, courseId);
@@ -114,15 +115,17 @@ export default async function LearnLayout({
         <div className="mb-6 flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
           <span className="font-medium">Preview mode</span>
           <span>
-            — you&apos;re viewing this course as {user.role === "admin" ? "an admin" : "its instructor"}{" "}
-            without enrolling.
+            — you&apos;re viewing this course as{" "}
+            {user.role === "admin" ? "an admin" : "an instructor"} without enrolling.
           </span>
-          <Link
-            href={`/instructor/courses/${courseId}`}
-            className="ml-auto font-medium text-amber-900 underline hover:text-amber-700"
-          >
-            Manage course
-          </Link>
+          {canManage && (
+            <Link
+              href={`/instructor/courses/${courseId}`}
+              className="ml-auto font-medium text-amber-900 underline hover:text-amber-700"
+            >
+              Manage course
+            </Link>
+          )}
         </div>
       )}
       <div className="flex gap-8">

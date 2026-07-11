@@ -8,14 +8,14 @@ function NavLinks({ role }: { role?: string }) {
       <Link href="/courses" className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900">
         Catalog
       </Link>
-      {role && (
+      {role === "student" && (
         <Link href="/dashboard" className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900">
           My learning
         </Link>
       )}
       {(role === "instructor" || role === "admin") && (
         <Link href="/instructor" className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900">
-          Teach
+          Courses
         </Link>
       )}
       {role === "admin" && (

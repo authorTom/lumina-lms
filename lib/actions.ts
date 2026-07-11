@@ -33,7 +33,7 @@ export async function register(_prev: FormState, formData: FormData): Promise<Fo
     .prepare("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)")
     .run(name, email, hash, role);
   await createSession(result.lastInsertRowid as number);
-  redirect("/dashboard");
+  redirect(role === "student" ? "/dashboard" : "/instructor");
 }
 
 export async function login(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -41,13 +41,13 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
   const password = String(formData.get("password") ?? "");
 
   const user = getDb()
-    .prepare("SELECT id, password_hash FROM users WHERE email = ?")
-    .get(email) as { id: number; password_hash: string } | undefined;
+    .prepare("SELECT id, password_hash, role FROM users WHERE email = ?")
+    .get(email) as { id: number; password_hash: string; role: string } | undefined;
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return { error: "Incorrect email or password." };
   }
   await createSession(user.id);
-  redirect("/dashboard");
+  redirect(user.role === "student" ? "/dashboard" : "/instructor");
 }
 
 export async function logout() {
@@ -59,6 +59,8 @@ export async function logout() {
 
 export async function enroll(courseId: number) {
   const user = await requireUser();
+  // Only students enroll; staff view content directly.
+  if (user.role !== "student") redirect(`/learn/${courseId}`);
   getDb()
     .prepare("INSERT OR IGNORE INTO enrollments (user_id, course_id) VALUES (?, ?)")
     .run(user.id, courseId);
@@ -105,8 +107,7 @@ export async function submitQuiz(quizId: number, formData: FormData): Promise<Qu
   const user = await requireUser();
   const quiz = getQuiz(quizId);
   if (!quiz) throw new Error("Quiz not found");
-  const isStaff =
-    user.role === "admin" || getCourseInstructorId(quiz.course_id) === user.id;
+  const isStaff = user.role === "admin" || user.role === "instructor";
   if (!isEnrolled(user.id, quiz.course_id) && !isStaff) throw new Error("Not enrolled");
 
   let correct = 0;

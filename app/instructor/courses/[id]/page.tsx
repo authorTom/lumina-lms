@@ -50,7 +50,7 @@ export default async function ManageCoursePage({
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       <Link href="/instructor" className="text-sm font-medium text-zinc-500 hover:text-zinc-800">
-        ← Instructor studio
+        ← Courses
       </Link>
 
       <div className="mt-2 flex flex-wrap items-start justify-between gap-4">

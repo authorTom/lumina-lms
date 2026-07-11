@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getEnrolledCourses } from "@/lib/data";
 import { requireUser } from "@/lib/auth";
@@ -10,6 +11,8 @@ export const metadata: Metadata = { title: "My learning" };
 
 export default async function DashboardPage() {
   const user = await requireUser();
+  // Staff don't enroll; their home is the courses section.
+  if (user.role !== "student") redirect("/instructor");
   const courses = getEnrolledCourses(user.id);
 
   const totalLessons = courses.reduce((s, c) => s + c.lesson_count, 0);
