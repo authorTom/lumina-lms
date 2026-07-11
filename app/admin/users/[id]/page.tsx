@@ -52,11 +52,17 @@ export default async function ManageUserPage({
         </span>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-4">
+      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
           { label: "Enrollments", value: user.enrollment_count },
           { label: "Courses taught", value: user.course_count },
           { label: "Joined", value: user.created_at.slice(0, 10) },
+          {
+            label: "Last login (UTC)",
+            value: user.last_login
+              ? `${user.last_login.slice(0, 10)} ${user.last_login.slice(11, 16)}`
+              : "—",
+          },
         ].map((stat) => (
           <div key={stat.label} className="card p-4">
             <p className="text-lg font-bold text-zinc-900">{stat.value}</p>

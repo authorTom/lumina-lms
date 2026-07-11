@@ -394,6 +394,7 @@ export interface AdminUser {
   enrollment_count: number;
   course_count: number;
   group_names: string | null;
+  last_login: string | null;
 }
 
 const ADMIN_USER_SELECT = `
@@ -401,7 +402,9 @@ const ADMIN_USER_SELECT = `
          (SELECT COUNT(*) FROM enrollments e WHERE e.user_id = u.id) AS enrollment_count,
          (SELECT COUNT(*) FROM courses c WHERE c.instructor_id = u.id AND c.deleted_at IS NULL) AS course_count,
          (SELECT GROUP_CONCAT(g.name, ', ') FROM user_group_members m
-          JOIN account_groups g ON g.id = m.group_id WHERE m.user_id = u.id) AS group_names
+          JOIN account_groups g ON g.id = m.group_id WHERE m.user_id = u.id) AS group_names,
+         (SELECT MAX(a.created_at) FROM activity_log a
+          WHERE a.user_id = u.id AND a.type = 'login') AS last_login
   FROM users u
 `;
 

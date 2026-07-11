@@ -152,6 +152,7 @@ export default async function AdminPage({
               <th className="px-5 py-3 font-medium">Status</th>
               <th className="px-5 py-3 font-medium">Groups</th>
               <th className="px-5 py-3 font-medium">Joined</th>
+              <th className="px-5 py-3 font-medium">Last login</th>
               <th className="px-5 py-3 font-medium"></th>
             </tr>
           </thead>
@@ -179,6 +180,18 @@ export default async function AdminPage({
                 </td>
                 <td className="px-5 py-3 text-xs text-zinc-600">{u.group_names ?? "—"}</td>
                 <td className="px-5 py-3 text-zinc-600">{u.created_at.slice(0, 10)}</td>
+                <td className="px-5 py-3 text-zinc-600">
+                  {u.last_login ? (
+                    <>
+                      {u.last_login.slice(0, 10)}
+                      <span className="block text-xs text-zinc-400">
+                        {u.last_login.slice(11, 16)} UTC
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-zinc-400">—</span>
+                  )}
+                </td>
                 <td className="px-5 py-3 text-right">
                   <Link
                     href={`/admin/users/${u.id}`}
