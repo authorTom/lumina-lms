@@ -1,9 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getLesson, getCourseOutline, completedLessonIds, isEnrolled } from "@/lib/data";
+import {
+  getLesson,
+  getCourseOutline,
+  completedLessonIds,
+  isEnrolled,
+  getScormPackage,
+  getScormData,
+} from "@/lib/data";
 import { requireUser } from "@/lib/auth";
 import { Markdown } from "@/components/markdown";
 import { CompleteButton } from "@/components/complete-button";
+import { ScormPlayer } from "@/components/scorm-player";
 
 function toEmbedUrl(url: string): string | null {
   try {
@@ -45,6 +53,21 @@ export default async function LessonPage({
 
   const embedUrl = lesson.video_url ? toEmbedUrl(lesson.video_url) : null;
 
+  const scormPackage = lesson.scorm_package_id
+    ? getScormPackage(lesson.scorm_package_id)
+    : undefined;
+  let initialCmi: Record<string, string> = {};
+  if (scormPackage) {
+    const saved = getScormData(user.id, lessonId);
+    if (saved) {
+      try {
+        initialCmi = JSON.parse(saved.cmi);
+      } catch {
+        initialCmi = {};
+      }
+    }
+  }
+
   return (
     <article>
       <p className="text-sm font-medium text-indigo-600">{lesson.module_title}</p>
@@ -66,21 +89,36 @@ export default async function LessonPage({
         Lesson {index + 1} of {flat.length} · {lesson.duration_minutes} min
       </p>
 
-      {embedUrl && (
-        <div className="card mt-6 aspect-video overflow-hidden">
-          <iframe
-            src={embedUrl}
-            title={lesson.title}
-            className="h-full w-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
+      {scormPackage ? (
+        <div className="mt-6">
+          <ScormPlayer
+            lessonId={lesson.id}
+            version={scormPackage.version}
+            launchUrl={`/scorm-content/${scormPackage.dir}/${scormPackage.launch_href}`}
+            initialCmi={initialCmi}
+            learnerId={String(user.id)}
+            learnerName={user.name}
           />
         </div>
-      )}
+      ) : (
+        <>
+          {embedUrl && (
+            <div className="card mt-6 aspect-video overflow-hidden">
+              <iframe
+                src={embedUrl}
+                title={lesson.title}
+                className="h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          )}
 
-      <div className="card mt-6 p-6 sm:p-8">
-        <Markdown content={lesson.content} />
-      </div>
+          <div className="card mt-6 p-6 sm:p-8">
+            <Markdown content={lesson.content} />
+          </div>
+        </>
+      )}
 
       <div className="mt-6 flex items-center justify-between gap-3">
         {prev ? (

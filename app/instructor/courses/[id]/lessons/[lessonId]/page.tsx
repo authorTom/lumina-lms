@@ -51,25 +51,35 @@ export default async function EditLessonPage({
             />
           </div>
         </div>
-        <div>
-          <label htmlFor="video_url" className="label">Video URL (optional)</label>
-          <input
-            id="video_url"
-            name="video_url"
-            type="url"
-            defaultValue={lesson.video_url ?? ""}
-            placeholder="YouTube or Vimeo link"
-            className="input"
-          />
-        </div>
-        <div>
-          <span className="label">Content</span>
-          <ContentEditor name="content" defaultValue={lesson.content} rows={18} />
-          <p className="mt-1 text-xs text-zinc-500">
-            Use the toolbar or type markdown directly; the Preview tab shows the lesson
-            exactly as students will see it.
+        {lesson.scorm_package_id ? (
+          <p className="rounded-lg bg-violet-50 px-3 py-2 text-sm text-violet-800">
+            This is a SCORM lesson — its content comes from the uploaded package. You can
+            rename it or adjust the duration here; to change the content, delete this
+            lesson and upload a new package.
           </p>
-        </div>
+        ) : (
+          <>
+            <div>
+              <label htmlFor="video_url" className="label">Video URL (optional)</label>
+              <input
+                id="video_url"
+                name="video_url"
+                type="url"
+                defaultValue={lesson.video_url ?? ""}
+                placeholder="YouTube or Vimeo link"
+                className="input"
+              />
+            </div>
+            <div>
+              <span className="label">Content</span>
+              <ContentEditor name="content" defaultValue={lesson.content} rows={18} />
+              <p className="mt-1 text-xs text-zinc-500">
+                Use the toolbar or type markdown directly; the Preview tab shows the lesson
+                exactly as students will see it.
+              </p>
+            </div>
+          </>
+        )}
         <div className="flex items-center gap-2">
           <button className="btn-primary">Save lesson</button>
           <Link href={`/instructor/courses/${courseId}`} className="btn-secondary">

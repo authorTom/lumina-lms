@@ -23,6 +23,7 @@ import {
 } from "@/lib/actions";
 import { CourseFields } from "@/components/course-fields";
 import { ContentEditor } from "@/components/content-editor";
+import { ScormUploadForm } from "@/components/scorm-upload-form";
 import { ConfirmButton } from "@/components/confirm-button";
 import { ProgressBar } from "@/components/progress-bar";
 
@@ -114,6 +115,9 @@ export default async function ManageCoursePage({
                   <li key={lesson.id} className="flex items-center gap-3 px-5 py-3 text-sm">
                     <span className="text-zinc-400">▶</span>
                     <span className="text-zinc-800">{lesson.title}</span>
+                    {lesson.scorm_package_id && (
+                      <span className="badge bg-violet-100 text-violet-800">SCORM</span>
+                    )}
                     <span className="text-xs text-zinc-400">{lesson.duration_minutes} min</span>
                     <span className="ml-auto flex items-center gap-3">
                       <Link
@@ -169,6 +173,15 @@ export default async function ManageCoursePage({
                   />
                   <button className="btn-primary">Add lesson</button>
                 </form>
+              </details>
+
+              <details className="border-t border-zinc-100">
+                <summary className="cursor-pointer px-5 py-3 text-sm font-medium text-indigo-600 hover:bg-zinc-50">
+                  + Add SCORM lesson
+                </summary>
+                <div className="px-5 pb-5">
+                  <ScormUploadForm moduleId={mod.id} courseId={courseId} />
+                </div>
               </details>
 
               {/* Quiz */}

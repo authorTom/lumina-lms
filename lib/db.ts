@@ -70,7 +70,28 @@ function migrate(db: Database.Database) {
       content TEXT NOT NULL DEFAULT '',
       video_url TEXT,
       duration_minutes INTEGER NOT NULL DEFAULT 5,
-      position INTEGER NOT NULL DEFAULT 0
+      position INTEGER NOT NULL DEFAULT 0,
+      scorm_package_id INTEGER REFERENCES scorm_packages(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS scorm_packages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      version TEXT NOT NULL DEFAULT '1.2' CHECK (version IN ('1.2','2004')),
+      launch_href TEXT NOT NULL,
+      dir TEXT NOT NULL UNIQUE,
+      uploaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS scorm_data (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      lesson_id INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+      cmi TEXT NOT NULL DEFAULT '{}',
+      lesson_status TEXT,
+      score_raw REAL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, lesson_id)
     );
 
     CREATE TABLE IF NOT EXISTS enrollments (
@@ -137,6 +158,12 @@ function migrate(db: Database.Database) {
   const userCols = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
   if (!userCols.some((c) => c.name === "disabled")) {
     db.exec("ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0");
+  }
+
+  // Migrate databases created before SCORM support existed.
+  const lessonCols = db.prepare("PRAGMA table_info(lessons)").all() as { name: string }[];
+  if (!lessonCols.some((c) => c.name === "scorm_package_id")) {
+    db.exec("ALTER TABLE lessons ADD COLUMN scorm_package_id INTEGER REFERENCES scorm_packages(id)");
   }
 
   const userCount = db.prepare("SELECT COUNT(*) AS n FROM users").get() as { n: number };

@@ -35,6 +35,38 @@ export interface Lesson {
   video_url: string | null;
   duration_minutes: number;
   position: number;
+  scorm_package_id: number | null;
+}
+
+export interface ScormPackage {
+  id: number;
+  title: string;
+  version: "1.2" | "2004";
+  launch_href: string;
+  dir: string;
+  uploaded_by: number | null;
+  created_at: string;
+}
+
+export interface ScormData {
+  user_id: number;
+  lesson_id: number;
+  cmi: string;
+  lesson_status: string | null;
+  score_raw: number | null;
+  updated_at: string;
+}
+
+export function getScormPackage(id: number): ScormPackage | undefined {
+  return getDb()
+    .prepare("SELECT * FROM scorm_packages WHERE id = ?")
+    .get(id) as ScormPackage | undefined;
+}
+
+export function getScormData(userId: number, lessonId: number): ScormData | undefined {
+  return getDb()
+    .prepare("SELECT * FROM scorm_data WHERE user_id = ? AND lesson_id = ?")
+    .get(userId, lessonId) as ScormData | undefined;
 }
 
 export interface Quiz {

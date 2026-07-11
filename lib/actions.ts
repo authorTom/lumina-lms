@@ -6,7 +6,8 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { getDb } from "./db";
 import { createSession, destroySession, getCurrentUser, requireUser } from "./auth";
-import { getCourseInstructorId, getQuiz, isEnrolled } from "./data";
+import { getCourseInstructorId, getLesson, getQuiz, isEnrolled } from "./data";
+import { importScormPackage } from "./scorm";
 
 export interface FormState {
   error?: string;
@@ -262,6 +263,103 @@ export async function addLesson(moduleId: number, courseId: number, formData: Fo
     max.p + 1
   );
   revalidatePath(`/instructor/courses/${courseId}`);
+}
+
+export async function addScormLesson(
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const moduleId = Number(formData.get("module_id"));
+  const courseId = Number(formData.get("course_id"));
+  if (!Number.isInteger(moduleId) || !Number.isInteger(courseId)) {
+    return { error: "Invalid module." };
+  }
+  const moduleRow = getDb()
+    .prepare("SELECT course_id FROM modules WHERE id = ?")
+    .get(moduleId) as { course_id: number } | undefined;
+  if (!moduleRow || moduleRow.course_id !== courseId) {
+    return { error: "Invalid module." };
+  }
+  const user = await requireCourseOwner(courseId);
+
+  const file = formData.get("package");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Please choose a SCORM zip file." };
+  }
+  if (!file.name.toLowerCase().endsWith(".zip")) {
+    return { error: "SCORM packages must be uploaded as .zip files." };
+  }
+
+  let imported;
+  try {
+    imported = importScormPackage(Buffer.from(await file.arrayBuffer()), user.id);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Could not import the package." };
+  }
+
+  const title = String(formData.get("title") ?? "").trim() || imported.title;
+  const db = getDb();
+  const max = db
+    .prepare("SELECT COALESCE(MAX(position), -1) AS p FROM lessons WHERE module_id = ?")
+    .get(moduleId) as { p: number };
+  db.prepare(
+    "INSERT INTO lessons (module_id, title, content, duration_minutes, position, scorm_package_id) VALUES (?, ?, '', ?, ?, ?)"
+  ).run(
+    moduleId,
+    title,
+    Math.max(1, Number(formData.get("duration_minutes")) || 15),
+    max.p + 1,
+    imported.id
+  );
+  revalidatePath(`/instructor/courses/${courseId}`);
+  return {};
+}
+
+// Persists the CMI state reported by a SCO and mirrors completion into
+// the regular lesson-progress system for enrolled students.
+const SCORM_COMPLETE = new Set(["completed", "passed"]);
+
+export async function saveScormData(lessonId: number, cmiJson: string) {
+  const user = await requireUser();
+  const lesson = getLesson(lessonId);
+  if (!lesson || !lesson.scorm_package_id) throw new Error("Not a SCORM lesson");
+  const isStaff = user.role === "admin" || user.role === "instructor";
+  const enrolled = isEnrolled(user.id, lesson.course_id);
+  if (!enrolled && !isStaff) throw new Error("Not enrolled");
+
+  if (cmiJson.length > 1_000_000) throw new Error("CMI payload too large");
+  let cmi: Record<string, string>;
+  try {
+    cmi = JSON.parse(cmiJson);
+  } catch {
+    throw new Error("Invalid CMI payload");
+  }
+
+  // SCORM 1.2 reports lesson_status; 2004 splits completion and success.
+  const status =
+    cmi["cmi.core.lesson_status"] ||
+    (cmi["cmi.success_status"] === "passed" ? "passed" : cmi["cmi.completion_status"]) ||
+    null;
+  const rawScore = Number(cmi["cmi.core.score.raw"] ?? cmi["cmi.score.raw"]);
+  const score = Number.isFinite(rawScore) ? rawScore : null;
+
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO scorm_data (user_id, lesson_id, cmi, lesson_status, score_raw, updated_at)
+     VALUES (?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT (user_id, lesson_id) DO UPDATE SET
+       cmi = excluded.cmi, lesson_status = excluded.lesson_status,
+       score_raw = excluded.score_raw, updated_at = excluded.updated_at`
+  ).run(user.id, lessonId, cmiJson, status, score);
+
+  if (enrolled && status && SCORM_COMPLETE.has(status)) {
+    db.prepare(
+      "INSERT OR IGNORE INTO lesson_progress (user_id, lesson_id) VALUES (?, ?)"
+    ).run(user.id, lessonId);
+    revalidatePath(`/learn/${lesson.course_id}`, "layout");
+    revalidatePath("/dashboard");
+  }
+  return { status, score };
 }
 
 export async function updateLesson(lessonId: number, courseId: number, formData: FormData) {
