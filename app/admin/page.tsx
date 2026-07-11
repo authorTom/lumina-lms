@@ -29,8 +29,15 @@ export default async function AdminPage({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
-      <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Admin</h1>
-      <p className="mt-1 text-zinc-500">Platform overview, users, and account groups.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Admin</h1>
+          <p className="mt-1 text-zinc-500">Platform overview, users, and account groups.</p>
+        </div>
+        <Link href="/admin/analytics" className="btn-primary">
+          Analytics &amp; reports →
+        </Link>
+      </div>
 
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[

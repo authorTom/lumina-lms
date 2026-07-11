@@ -19,9 +19,14 @@ function NavLinks({ role }: { role?: string }) {
         </Link>
       )}
       {role === "admin" && (
-        <Link href="/admin" className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900">
-          Admin
-        </Link>
+        <>
+          <Link href="/admin" className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900">
+            Admin
+          </Link>
+          <Link href="/admin/analytics" className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900">
+            Analytics
+          </Link>
+        </>
       )}
     </>
   );

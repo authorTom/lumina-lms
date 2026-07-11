@@ -9,6 +9,7 @@ import {
   getScormData,
 } from "@/lib/data";
 import { requireUser } from "@/lib/auth";
+import { logActivity } from "@/lib/analytics";
 import { Markdown } from "@/components/markdown";
 import { CompleteButton } from "@/components/complete-button";
 import { ScormPlayer } from "@/components/scorm-player";
@@ -44,6 +45,8 @@ export default async function LessonPage({
 
   const lesson = getLesson(lessonId);
   if (!lesson || lesson.course_id !== courseId) notFound();
+
+  logActivity("lesson_view", { userId: user.id, courseId, lessonId });
 
   const flat = getCourseOutline(courseId).flatMap((m) => m.lessons);
   const index = flat.findIndex((l) => l.id === lessonId);

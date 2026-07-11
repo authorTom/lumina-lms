@@ -156,6 +156,19 @@ function migrate(db: Database.Database) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS activity_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      type TEXT NOT NULL CHECK (type IN ('login','course_view','lesson_view')),
+      course_id INTEGER,
+      lesson_id INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_log(created_at);
+    CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_log(user_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_activity_course ON activity_log(course_id, type);
+
     CREATE INDEX IF NOT EXISTS idx_courses_instructor ON courses(instructor_id);
     CREATE INDEX IF NOT EXISTS idx_modules_course ON modules(course_id, position);
     CREATE INDEX IF NOT EXISTS idx_lessons_module ON lessons(module_id, position);

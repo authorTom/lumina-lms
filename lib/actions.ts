@@ -17,6 +17,7 @@ import {
 } from "./data";
 import { deleteScormFiles, importScormPackage, listOrphanedScormDirs } from "./scorm";
 import { deleteCourseImage, saveCourseImage } from "./media";
+import { logActivity } from "./analytics";
 
 export interface FormState {
   error?: string;
@@ -64,6 +65,7 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
     return { error: "This account has been disabled. Contact an administrator." };
   }
   await createSession(user.id);
+  logActivity("login", { userId: user.id });
   redirect(user.role === "student" ? "/dashboard" : "/instructor");
 }
 
