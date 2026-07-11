@@ -186,11 +186,13 @@ export async function togglePublish(courseId: number) {
   revalidatePath("/courses");
 }
 
-export async function deleteCourse(courseId: number) {
+export async function deleteCourse(courseId: number, redirectTo: string = "/instructor") {
   await requireCourseOwner(courseId);
   getDb().prepare("DELETE FROM courses WHERE id = ?").run(courseId);
   revalidatePath("/instructor");
-  redirect("/instructor");
+  revalidatePath("/admin");
+  revalidatePath("/courses");
+  redirect(redirectTo);
 }
 
 export async function addModule(courseId: number, formData: FormData) {

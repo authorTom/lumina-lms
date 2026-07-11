@@ -1,7 +1,9 @@
+import Link from "next/link";
 import type { Metadata } from "next";
-import { listUsers, platformStats } from "@/lib/data";
+import { listAllCourses, listUsers, platformStats } from "@/lib/data";
 import { requireUser } from "@/lib/auth";
-import { deleteUser } from "@/lib/actions";
+import { deleteCourse, deleteUser } from "@/lib/actions";
+import { badgeClass } from "@/lib/colors";
 import { ConfirmButton } from "@/components/confirm-button";
 import { RoleSelect } from "@/components/role-select";
 
@@ -16,6 +18,7 @@ const ROLE_BADGE: Record<string, string> = {
 export default async function AdminPage() {
   const admin = await requireUser("admin");
   const users = listUsers();
+  const courses = listAllCourses();
   const stats = platformStats();
 
   return (
@@ -35,6 +38,68 @@ export default async function AdminPage() {
             <p className="text-xs text-zinc-500">{stat.label}</p>
           </div>
         ))}
+      </div>
+
+      <h2 className="mt-10 text-xl font-semibold tracking-tight text-zinc-900">
+        Courses ({courses.length})
+      </h2>
+      <div className="card mt-4 overflow-x-auto">
+        <table className="w-full min-w-[720px] text-left text-sm">
+          <thead>
+            <tr className="border-b border-zinc-200 text-xs text-zinc-500 uppercase tracking-wide">
+              <th className="px-5 py-3 font-medium">Course</th>
+              <th className="px-5 py-3 font-medium">Instructor</th>
+              <th className="px-5 py-3 font-medium">Status</th>
+              <th className="px-5 py-3 font-medium">Lessons</th>
+              <th className="px-5 py-3 font-medium">Students</th>
+              <th className="px-5 py-3 font-medium"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100">
+            {courses.map((course) => (
+              <tr key={course.id} className="hover:bg-zinc-50">
+                <td className="px-5 py-3">
+                  <p className="font-medium text-zinc-900">{course.title}</p>
+                  <p className="text-xs text-zinc-500">
+                    <span className={`badge mr-1 ${badgeClass(course.color)}`}>{course.level}</span>
+                    {course.category}
+                  </p>
+                </td>
+                <td className="px-5 py-3 text-zinc-600">{course.instructor_name}</td>
+                <td className="px-5 py-3">
+                  <span
+                    className={`badge ${
+                      course.published
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-zinc-100 text-zinc-600"
+                    }`}
+                  >
+                    {course.published ? "Published" : "Draft"}
+                  </span>
+                </td>
+                <td className="px-5 py-3 text-zinc-600">{course.lesson_count}</td>
+                <td className="px-5 py-3 text-zinc-600">{course.student_count}</td>
+                <td className="px-5 py-3 text-right">
+                  <span className="flex items-center justify-end gap-3">
+                    <Link
+                      href={`/instructor/courses/${course.id}`}
+                      className="font-medium text-indigo-600 hover:text-indigo-800"
+                    >
+                      Manage
+                    </Link>
+                    <ConfirmButton
+                      action={deleteCourse.bind(null, course.id, "/admin")}
+                      message={`Permanently delete “${course.title}” by ${course.instructor_name}? All modules, lessons, quizzes, and enrollments will be removed.`}
+                      className="text-xs text-zinc-400 hover:text-red-600 cursor-pointer"
+                    >
+                      Delete
+                    </ConfirmButton>
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <h2 className="mt-10 text-xl font-semibold tracking-tight text-zinc-900">

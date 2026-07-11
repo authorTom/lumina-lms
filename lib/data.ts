@@ -278,6 +278,12 @@ export interface AdminUser {
   course_count: number;
 }
 
+export function listAllCourses(): CourseSummary[] {
+  return getDb()
+    .prepare(`${COURSE_SUMMARY_SELECT} ORDER BY c.created_at DESC`)
+    .all() as CourseSummary[];
+}
+
 export function listUsers(): AdminUser[] {
   return getDb()
     .prepare(
