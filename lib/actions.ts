@@ -6,8 +6,15 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { getDb } from "./db";
 import { createSession, destroySession, getCurrentUser, requireUser } from "./auth";
-import { getCourseInstructorId, getLesson, getQuiz, isEnrolled } from "./data";
-import { importScormPackage } from "./scorm";
+import {
+  getCourseInstructorId,
+  getLesson,
+  getQuiz,
+  getScormPackage,
+  isEnrolled,
+  scormPackageUsageCount,
+} from "./data";
+import { deleteScormFiles, importScormPackage, listOrphanedScormDirs } from "./scorm";
 
 export interface FormState {
   error?: string;
@@ -313,6 +320,80 @@ export async function addScormLesson(
   );
   revalidatePath(`/instructor/courses/${courseId}`);
   return {};
+}
+
+// --- SCORM library ---
+
+export async function uploadScormPackage(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser("instructor", "admin");
+  const file = formData.get("package");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Please choose a SCORM zip file." };
+  }
+  if (!file.name.toLowerCase().endsWith(".zip")) {
+    return { error: "SCORM packages must be uploaded as .zip files." };
+  }
+  try {
+    importScormPackage(Buffer.from(await file.arrayBuffer()), user.id);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Could not import the package." };
+  }
+  revalidatePath("/instructor/scorm");
+  return {};
+}
+
+export async function deleteScormPackage(packageId: number) {
+  const user = await requireUser("instructor", "admin");
+  const pkg = getScormPackage(packageId);
+  if (!pkg) return;
+  if (user.role !== "admin" && pkg.uploaded_by !== user.id) {
+    throw new Error("Only the uploader or an admin can delete a package.");
+  }
+  // Never delete a package that lessons still point at.
+  if (scormPackageUsageCount(packageId) > 0) {
+    throw new Error("This package is in use by lessons and cannot be deleted.");
+  }
+  getDb().prepare("DELETE FROM scorm_packages WHERE id = ?").run(packageId);
+  deleteScormFiles(pkg.dir);
+  revalidatePath("/instructor/scorm");
+}
+
+// Attach an existing library package to a module as a new lesson.
+export async function attachScormLesson(formData: FormData) {
+  const moduleId = Number(formData.get("module_id"));
+  const courseId = Number(formData.get("course_id"));
+  const packageId = Number(formData.get("package_id"));
+  if (![moduleId, courseId, packageId].every(Number.isInteger)) return;
+
+  const db = getDb();
+  const moduleRow = db
+    .prepare("SELECT course_id FROM modules WHERE id = ?")
+    .get(moduleId) as { course_id: number } | undefined;
+  if (!moduleRow || moduleRow.course_id !== courseId) return;
+  await requireCourseOwner(courseId);
+  const pkg = getScormPackage(packageId);
+  if (!pkg) return;
+
+  const title = String(formData.get("title") ?? "").trim() || pkg.title;
+  const max = db
+    .prepare("SELECT COALESCE(MAX(position), -1) AS p FROM lessons WHERE module_id = ?")
+    .get(moduleId) as { p: number };
+  db.prepare(
+    "INSERT INTO lessons (module_id, title, content, duration_minutes, position, scorm_package_id) VALUES (?, ?, '', ?, ?, ?)"
+  ).run(
+    moduleId,
+    title,
+    Math.max(1, Number(formData.get("duration_minutes")) || 15),
+    max.p + 1,
+    packageId
+  );
+  revalidatePath(`/instructor/courses/${courseId}`);
+}
+
+export async function cleanupScormOrphans() {
+  await requireUser("admin");
+  for (const dir of listOrphanedScormDirs()) deleteScormFiles(dir);
+  revalidatePath("/instructor/scorm");
 }
 
 // Persists the CMI state reported by a SCO and mirrors completion into

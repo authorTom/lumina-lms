@@ -80,6 +80,7 @@ function migrate(db: Database.Database) {
       version TEXT NOT NULL DEFAULT '1.2' CHECK (version IN ('1.2','2004')),
       launch_href TEXT NOT NULL,
       dir TEXT NOT NULL UNIQUE,
+      size_bytes INTEGER NOT NULL DEFAULT 0,
       uploaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -164,6 +165,12 @@ function migrate(db: Database.Database) {
   const lessonCols = db.prepare("PRAGMA table_info(lessons)").all() as { name: string }[];
   if (!lessonCols.some((c) => c.name === "scorm_package_id")) {
     db.exec("ALTER TABLE lessons ADD COLUMN scorm_package_id INTEGER REFERENCES scorm_packages(id)");
+  }
+
+  // Migrate databases created before the SCORM library existed.
+  const packageCols = db.prepare("PRAGMA table_info(scorm_packages)").all() as { name: string }[];
+  if (!packageCols.some((c) => c.name === "size_bytes")) {
+    db.exec("ALTER TABLE scorm_packages ADD COLUMN size_bytes INTEGER NOT NULL DEFAULT 0");
   }
 
   const userCount = db.prepare("SELECT COUNT(*) AS n FROM users").get() as { n: number };

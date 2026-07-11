@@ -6,6 +6,7 @@ import {
   getQuiz,
   courseStudents,
   getCourseInstructorId,
+  listScormPackages,
 } from "@/lib/data";
 import { requireUser } from "@/lib/auth";
 import {
@@ -20,6 +21,7 @@ import {
   deleteQuiz,
   addQuestion,
   deleteQuestion,
+  attachScormLesson,
 } from "@/lib/actions";
 import { CourseFields } from "@/components/course-fields";
 import { ContentEditor } from "@/components/content-editor";
@@ -45,6 +47,7 @@ export default async function ManageCoursePage({
   }
 
   const outline = getCourseOutline(courseId);
+  const scormLibrary = listScormPackages();
 
   const students = courseStudents(courseId);
 
@@ -179,8 +182,53 @@ export default async function ManageCoursePage({
                 <summary className="cursor-pointer px-5 py-3 text-sm font-medium text-indigo-600 hover:bg-zinc-50">
                   + Add SCORM lesson
                 </summary>
-                <div className="px-5 pb-5">
-                  <ScormUploadForm moduleId={mod.id} courseId={courseId} />
+                <div className="space-y-5 px-5 pb-5">
+                  {scormLibrary.length > 0 && (
+                    <form action={attachScormLesson} className="space-y-3">
+                      <input type="hidden" name="module_id" value={mod.id} />
+                      <input type="hidden" name="course_id" value={courseId} />
+                      <p className="text-sm font-medium text-zinc-900">From the library</p>
+                      <select name="package_id" required className="input" defaultValue="">
+                        <option value="" disabled>
+                          Choose a package…
+                        </option>
+                        {scormLibrary.map((pkg) => (
+                          <option key={pkg.id} value={pkg.id}>
+                            {pkg.title} (SCORM {pkg.version})
+                          </option>
+                        ))}
+                      </select>
+                      <div className="grid gap-3 sm:grid-cols-[1fr_110px]">
+                        <input
+                          name="title"
+                          placeholder="Lesson title (defaults to the package title)"
+                          className="input"
+                        />
+                        <input
+                          name="duration_minutes"
+                          type="number"
+                          min={1}
+                          defaultValue={15}
+                          className="input"
+                          aria-label="Duration in minutes"
+                        />
+                      </div>
+                      <button className="btn-primary">Add from library</button>
+                      <p className="text-xs text-zinc-500">
+                        Manage packages in the{" "}
+                        <Link href="/instructor/scorm" className="font-medium text-indigo-600 hover:text-indigo-800">
+                          SCORM library
+                        </Link>
+                        .
+                      </p>
+                    </form>
+                  )}
+                  <div className={scormLibrary.length > 0 ? "border-t border-zinc-100 pt-4" : ""}>
+                    {scormLibrary.length > 0 && (
+                      <p className="mb-3 text-sm font-medium text-zinc-900">Or upload a new package</p>
+                    )}
+                    <ScormUploadForm moduleId={mod.id} courseId={courseId} />
+                  </div>
                 </div>
               </details>
 

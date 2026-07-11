@@ -105,6 +105,27 @@ export function parseManifest(xml: string): ParsedManifest {
   return { title, version, launchHref };
 }
 
+export function deleteScormFiles(dir: string) {
+  // dir is a UUID we generated; refuse anything path-like as defence in depth.
+  if (!/^[0-9a-f-]{36}$/.test(dir)) return;
+  fs.rmSync(path.join(SCORM_ROOT, dir), { recursive: true, force: true });
+}
+
+// Directories on disk with no matching database row (e.g. from a crashed
+// import or a database restore).
+export function listOrphanedScormDirs(): string[] {
+  if (!fs.existsSync(SCORM_ROOT)) return [];
+  const known = new Set(
+    (getDb().prepare("SELECT dir FROM scorm_packages").all() as { dir: string }[]).map(
+      (r) => r.dir
+    )
+  );
+  return fs
+    .readdirSync(SCORM_ROOT, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !known.has(e.name))
+    .map((e) => e.name);
+}
+
 export function importScormPackage(buffer: Buffer, uploadedBy: number): ImportedPackage {
   let zip: AdmZip;
   try {
@@ -158,9 +179,9 @@ export function importScormPackage(buffer: Buffer, uploadedBy: number): Imported
 
   const result = getDb()
     .prepare(
-      "INSERT INTO scorm_packages (title, version, launch_href, dir, uploaded_by) VALUES (?, ?, ?, ?, ?)"
+      "INSERT INTO scorm_packages (title, version, launch_href, dir, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?, ?)"
     )
-    .run(parsed.title, parsed.version, parsed.launchHref, dir, uploadedBy);
+    .run(parsed.title, parsed.version, parsed.launchHref, dir, totalBytes, uploadedBy);
 
   return {
     id: result.lastInsertRowid as number,

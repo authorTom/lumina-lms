@@ -57,6 +57,36 @@ export interface ScormData {
   updated_at: string;
 }
 
+export interface LibraryPackage extends ScormPackage {
+  size_bytes: number;
+  uploader_name: string | null;
+  usage_count: number;
+  used_in: string | null; // distinct course titles
+}
+
+export function listScormPackages(): LibraryPackage[] {
+  return getDb()
+    .prepare(
+      `SELECT p.*, u.name AS uploader_name,
+              (SELECT COUNT(*) FROM lessons l WHERE l.scorm_package_id = p.id) AS usage_count,
+              (SELECT GROUP_CONCAT(DISTINCT c.title) FROM lessons l
+               JOIN modules m ON m.id = l.module_id
+               JOIN courses c ON c.id = m.course_id
+               WHERE l.scorm_package_id = p.id) AS used_in
+       FROM scorm_packages p
+       LEFT JOIN users u ON u.id = p.uploaded_by
+       ORDER BY p.created_at DESC`
+    )
+    .all() as LibraryPackage[];
+}
+
+export function scormPackageUsageCount(packageId: number): number {
+  const row = getDb()
+    .prepare("SELECT COUNT(*) AS n FROM lessons WHERE scorm_package_id = ?")
+    .get(packageId) as { n: number };
+  return row.n;
+}
+
 export function getScormPackage(id: number): ScormPackage | undefined {
   return getDb()
     .prepare("SELECT * FROM scorm_packages WHERE id = ?")

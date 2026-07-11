@@ -1,7 +1,40 @@
 "use client";
 
 import { useActionState } from "react";
-import { addScormLesson, type FormState } from "@/lib/actions";
+import { addScormLesson, uploadScormPackage, type FormState } from "@/lib/actions";
+
+export function ScormLibraryUploadForm() {
+  const [state, action, pending] = useActionState<FormState, FormData>(uploadScormPackage, {});
+  return (
+    <form action={action} className="space-y-3">
+      {state.error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+          {state.error}
+        </p>
+      )}
+      <div>
+        <label className="label" htmlFor="library-scorm-file">
+          SCORM package (.zip)
+        </label>
+        <input
+          id="library-scorm-file"
+          type="file"
+          name="package"
+          accept=".zip,application/zip"
+          required
+          className="block w-full text-sm text-zinc-600 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
+        />
+        <p className="mt-1 text-xs text-zinc-500">
+          The title and SCORM version are read from the package manifest. Once uploaded,
+          the package can be added to any of your courses.
+        </p>
+      </div>
+      <button type="submit" disabled={pending} className="btn-primary">
+        {pending ? "Uploading…" : "Upload to library"}
+      </button>
+    </form>
+  );
+}
 
 export function ScormUploadForm({
   moduleId,

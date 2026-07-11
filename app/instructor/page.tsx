@@ -24,9 +24,14 @@ export default async function CoursesAdminPage() {
             {user.role === "instructor" ? ` · ${mine} taught by you` : ""}
           </p>
         </div>
-        <Link href="/instructor/courses/new" className="btn-primary">
-          + New course
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/instructor/scorm" className="btn-secondary">
+            SCORM library
+          </Link>
+          <Link href="/instructor/courses/new" className="btn-primary">
+            + New course
+          </Link>
+        </div>
       </div>
 
       {courses.length === 0 ? (
