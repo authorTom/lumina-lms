@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { deleteUser, setUserDisabled, setUserGroups } from "@/lib/actions";
 import { ConfirmButton } from "@/components/confirm-button";
 import { RoleSelect } from "@/components/role-select";
-import { PasswordPanel } from "@/components/admin-user-forms";
+import { PasswordPanel, RenameUserForm } from "@/components/admin-user-forms";
 
 const ROLE_BADGE: Record<string, string> = {
   admin: "bg-rose-100 text-rose-800",
@@ -64,9 +64,16 @@ export default async function ManageUserPage({
         ))}
       </div>
 
-      {/* Role & status */}
+      {/* Name, role & status */}
       <div className="card mt-6 space-y-5 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-zinc-900">Name</p>
+            <p className="text-sm text-zinc-500">The display name shown across the platform.</p>
+          </div>
+          <RenameUserForm userId={user.id} name={user.name} />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-4">
           <div>
             <p className="text-sm font-medium text-zinc-900">Role</p>
             <p className="text-sm text-zinc-500">Controls what this user can access.</p>

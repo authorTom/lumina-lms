@@ -1,7 +1,41 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { createUser, resetPassword, setPassword, type FormState } from "@/lib/actions";
+import { createUser, renameUser, resetPassword, setPassword, type FormState } from "@/lib/actions";
+
+export function RenameUserForm({ userId, name }: { userId: number; name: string }) {
+  const [state, action, pending] = useActionState<FormState, FormData>(renameUser, {});
+
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="user_id" value={userId} />
+      {state.error ? (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+          {state.error}
+        </p>
+      ) : (
+        state.ok && (
+          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            Name updated.
+          </p>
+        )
+      )}
+      <div className="flex gap-2">
+        <input
+          name="name"
+          required
+          maxLength={100}
+          defaultValue={name}
+          className="input max-w-xs"
+          aria-label="Full name"
+        />
+        <button type="submit" disabled={pending} className="btn-secondary shrink-0">
+          {pending ? "Saving…" : "Rename"}
+        </button>
+      </div>
+    </form>
+  );
+}
 
 export function CreateUserForm() {
   const [state, action, pending] = useActionState<FormState, FormData>(createUser, {});

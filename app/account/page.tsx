@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
-import { ChangePasswordForm } from "@/components/account-forms";
+import { ChangePasswordForm, ProfileForm } from "@/components/account-forms";
 
 export const metadata: Metadata = { title: "My account" };
 
@@ -30,6 +30,12 @@ export default async function AccountPage() {
           <p className="text-sm text-zinc-500">{user.email}</p>
         </div>
         <span className={`badge ml-auto ${ROLE_BADGE[user.role]}`}>{user.role}</span>
+      </div>
+
+      <div className="card mt-6 p-6">
+        <h2 className="font-semibold text-zinc-900">Profile</h2>
+        <p className="mt-1 mb-5 text-sm text-zinc-500">Update the name shown across Lumina.</p>
+        <ProfileForm name={user.name} />
       </div>
 
       <div className="card mt-6 p-6">

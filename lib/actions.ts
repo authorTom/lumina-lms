@@ -73,6 +73,15 @@ export async function logout() {
 
 // --- Account self-service ---
 
+export async function updateProfile(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name || name.length > 100) return { error: "Please enter your name." };
+  getDb().prepare("UPDATE users SET name = ? WHERE id = ?").run(name, user.id);
+  revalidatePath("/", "layout"); // the navbar shows the name everywhere
+  return { ok: true };
+}
+
 export async function changePassword(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
   const current = String(formData.get("current_password") ?? "");
@@ -601,6 +610,18 @@ export async function createUser(_prev: FormState, formData: FormData): Promise<
     .run(name, email, bcrypt.hashSync(password, 10), role);
   revalidatePath("/admin");
   redirect(`/admin/users/${result.lastInsertRowid}`);
+}
+
+export async function renameUser(_prev: FormState, formData: FormData): Promise<FormState> {
+  await requireUser("admin");
+  const userId = Number(formData.get("user_id"));
+  const name = String(formData.get("name") ?? "").trim();
+  if (!Number.isInteger(userId)) return { error: "Invalid user." };
+  if (!name || name.length > 100) return { error: "Please enter a name." };
+  getDb().prepare("UPDATE users SET name = ? WHERE id = ?").run(name, userId);
+  revalidatePath("/admin");
+  revalidatePath(`/admin/users/${userId}`);
+  return { ok: true };
 }
 
 export async function setUserDisabled(userId: number, disabled: boolean) {
