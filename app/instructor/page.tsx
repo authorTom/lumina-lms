@@ -64,9 +64,8 @@ export default async function CoursesAdminPage() {
                       <p className="font-medium text-zinc-900">{course.title}</p>
                       <p className="text-xs text-zinc-500">
                         <span className={`badge mr-1 ${badgeClass(course.color)}`}>
-                          {course.level}
+                          {course.category}
                         </span>
-                        {course.category}
                       </p>
                     </td>
                     <td className="px-5 py-3 text-zinc-600">{course.instructor_name}</td>

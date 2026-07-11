@@ -13,19 +13,9 @@ export function CourseFields({ course }: { course?: CourseSummary }) {
         <label htmlFor="description" className="label">Description</label>
         <textarea id="description" name="description" rows={3} defaultValue={course?.description ?? ""} className="input" placeholder="What will students learn?" />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="category" className="label">Category</label>
-          <input id="category" name="category" defaultValue={course?.category ?? ""} className="input" placeholder="e.g. Programming" />
-        </div>
-        <div>
-          <label htmlFor="level" className="label">Level</label>
-          <select id="level" name="level" defaultValue={course?.level ?? "Beginner"} className="input">
-            <option>Beginner</option>
-            <option>Intermediate</option>
-            <option>Advanced</option>
-          </select>
-        </div>
+      <div>
+        <label htmlFor="category" className="label">Category</label>
+        <input id="category" name="category" defaultValue={course?.category ?? ""} className="input" placeholder="e.g. Programming" />
       </div>
       <fieldset>
         <legend className="label">Card color</legend>

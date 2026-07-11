@@ -29,9 +29,9 @@ export function CourseCard({
         </h3>
         <p className="line-clamp-2 text-sm text-zinc-500">{course.description}</p>
         <div className="mt-auto flex items-center gap-2 pt-2 text-xs text-zinc-500">
-          <span className={`badge ${badgeClass(course.color)}`}>{course.level}</span>
-          <span>{course.lesson_count} lessons</span>
-          <span>·</span>
+          <span className={`badge ${badgeClass(course.color)}`}>
+            {course.lesson_count} lesson{course.lesson_count === 1 ? "" : "s"}
+          </span>
           <span>{hours}h</span>
           <span className="ml-auto">{course.instructor_name}</span>
         </div>

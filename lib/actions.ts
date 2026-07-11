@@ -186,17 +186,15 @@ export async function createCourse(_prev: FormState, formData: FormData): Promis
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const category = String(formData.get("category") ?? "General").trim() || "General";
-  const level = String(formData.get("level") ?? "Beginner");
   const color = String(formData.get("color") ?? "indigo");
 
   if (!title) return { error: "Please enter a course title." };
-  if (!["Beginner", "Intermediate", "Advanced"].includes(level)) return { error: "Invalid level." };
 
   const result = getDb()
     .prepare(
-      "INSERT INTO courses (title, description, category, level, color, instructor_id) VALUES (?, ?, ?, ?, ?, ?)"
+      "INSERT INTO courses (title, description, category, color, instructor_id) VALUES (?, ?, ?, ?, ?)"
     )
-    .run(title, description, category, level, color, user.id);
+    .run(title, description, category, color, user.id);
   redirect(`/instructor/courses/${result.lastInsertRowid}`);
 }
 
@@ -206,13 +204,12 @@ export async function updateCourse(courseId: number, formData: FormData) {
   if (!title) return;
   getDb()
     .prepare(
-      "UPDATE courses SET title = ?, description = ?, category = ?, level = ?, color = ? WHERE id = ?"
+      "UPDATE courses SET title = ?, description = ?, category = ?, color = ? WHERE id = ?"
     )
     .run(
       title,
       String(formData.get("description") ?? "").trim(),
       String(formData.get("category") ?? "General").trim() || "General",
-      String(formData.get("level") ?? "Beginner"),
       String(formData.get("color") ?? "indigo"),
       courseId
     );

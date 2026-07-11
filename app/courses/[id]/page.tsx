@@ -40,9 +40,7 @@ export default async function CoursePage({
     <div>
       <div className={`${bannerClass(course.color)} text-white`}>
         <div className="mx-auto max-w-6xl px-4 py-12">
-          <p className="text-sm font-medium text-white/80">
-            {course.category} · {course.level}
-          </p>
+          <p className="text-sm font-medium text-white/80">{course.category}</p>
           <h1 className="mt-1 max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">
             {course.title}
           </h1>
