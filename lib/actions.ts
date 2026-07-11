@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { getDb } from "./db";
 import { createSession, destroySession, getCurrentUser, requireUser } from "./auth";
@@ -41,10 +42,15 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
   const password = String(formData.get("password") ?? "");
 
   const user = getDb()
-    .prepare("SELECT id, password_hash, role FROM users WHERE email = ?")
-    .get(email) as { id: number; password_hash: string; role: string } | undefined;
+    .prepare("SELECT id, password_hash, role, disabled FROM users WHERE email = ?")
+    .get(email) as
+    | { id: number; password_hash: string; role: string; disabled: number }
+    | undefined;
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return { error: "Incorrect email or password." };
+  }
+  if (user.disabled) {
+    return { error: "This account has been disabled. Contact an administrator." };
   }
   await createSession(user.id);
   redirect(user.role === "student" ? "/dashboard" : "/instructor");
@@ -327,7 +333,90 @@ export async function deleteQuestion(questionId: number, courseId: number) {
   revalidatePath(`/instructor/courses/${courseId}`);
 }
 
-// --- Admin ---
+// --- Admin: user management ---
+
+export async function createUser(_prev: FormState, formData: FormData): Promise<FormState> {
+  await requireUser("admin");
+  const name = String(formData.get("name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  const role = String(formData.get("role") ?? "student");
+
+  if (!name || name.length > 100) return { error: "Please enter a name." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Please enter a valid email address." };
+  if (password.length < 8) return { error: "Password must be at least 8 characters." };
+  if (!["student", "instructor", "admin"].includes(role)) return { error: "Invalid role." };
+
+  const db = getDb();
+  if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(email)) {
+    return { error: "An account with that email already exists." };
+  }
+  const result = db
+    .prepare("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)")
+    .run(name, email, bcrypt.hashSync(password, 10), role);
+  revalidatePath("/admin");
+  redirect(`/admin/users/${result.lastInsertRowid}`);
+}
+
+export async function setUserDisabled(userId: number, disabled: boolean) {
+  const admin = await requireUser("admin");
+  if (userId === admin.id) return; // don't lock yourself out
+  getDb().prepare("UPDATE users SET disabled = ? WHERE id = ?").run(disabled ? 1 : 0, userId);
+  revalidatePath("/admin");
+  revalidatePath(`/admin/users/${userId}`);
+}
+
+// Generates a random password, sets it, and returns it for one-time display.
+export async function resetPassword(userId: number): Promise<{ password: string }> {
+  await requireUser("admin");
+  const password = crypto.randomBytes(9).toString("base64url"); // 12 chars
+  getDb()
+    .prepare("UPDATE users SET password_hash = ? WHERE id = ?")
+    .run(bcrypt.hashSync(password, 10), userId);
+  return { password };
+}
+
+export async function setPassword(userId: number, _prev: FormState, formData: FormData): Promise<FormState> {
+  await requireUser("admin");
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 8) return { error: "Password must be at least 8 characters." };
+  getDb()
+    .prepare("UPDATE users SET password_hash = ? WHERE id = ?")
+    .run(bcrypt.hashSync(password, 10), userId);
+  return { error: undefined };
+}
+
+export async function createGroup(formData: FormData) {
+  await requireUser("admin");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name || name.length > 60) return;
+  getDb().prepare("INSERT OR IGNORE INTO account_groups (name) VALUES (?)").run(name);
+  revalidatePath("/admin");
+}
+
+export async function deleteGroup(groupId: number) {
+  await requireUser("admin");
+  getDb().prepare("DELETE FROM account_groups WHERE id = ?").run(groupId);
+  revalidatePath("/admin");
+}
+
+export async function setUserGroups(userId: number, formData: FormData) {
+  await requireUser("admin");
+  const db = getDb();
+  const groups = db.prepare("SELECT id FROM account_groups").all() as { id: number }[];
+  const setMembership = db.transaction(() => {
+    db.prepare("DELETE FROM user_group_members WHERE user_id = ?").run(userId);
+    const insert = db.prepare(
+      "INSERT OR IGNORE INTO user_group_members (user_id, group_id) VALUES (?, ?)"
+    );
+    for (const g of groups) {
+      if (formData.get(`group_${g.id}`)) insert.run(userId, g.id);
+    }
+  });
+  setMembership();
+  revalidatePath("/admin");
+  revalidatePath(`/admin/users/${userId}`);
+}
 
 export async function setUserRole(userId: number, role: string) {
   const admin = await requireUser("admin");
@@ -342,4 +431,5 @@ export async function deleteUser(userId: number) {
   if (userId === admin.id) return;
   getDb().prepare("DELETE FROM users WHERE id = ?").run(userId);
   revalidatePath("/admin");
+  redirect("/admin");
 }

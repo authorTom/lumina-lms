@@ -27,7 +27,20 @@ function migrate(db: Database.Database) {
       email TEXT NOT NULL UNIQUE COLLATE NOCASE,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('student','instructor','admin')),
+      disabled INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS account_groups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS user_group_members (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      group_id INTEGER NOT NULL REFERENCES account_groups(id) ON DELETE CASCADE,
+      PRIMARY KEY (user_id, group_id)
     );
 
     CREATE TABLE IF NOT EXISTS courses (
@@ -118,6 +131,12 @@ function migrate(db: Database.Database) {
   const courseCols = db.prepare("PRAGMA table_info(courses)").all() as { name: string }[];
   if (!courseCols.some((c) => c.name === "deleted_at")) {
     db.exec("ALTER TABLE courses ADD COLUMN deleted_at TEXT");
+  }
+
+  // Migrate databases created before account enable/disable existed.
+  const userCols = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
+  if (!userCols.some((c) => c.name === "disabled")) {
+    db.exec("ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0");
   }
 
   const userCount = db.prepare("SELECT COUNT(*) AS n FROM users").get() as { n: number };

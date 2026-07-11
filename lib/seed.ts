@@ -15,9 +15,23 @@ export function seed(db: Database) {
     .lastInsertRowid as number;
   const studentId = insertUser.run("Tom Wright", "student@lms.dev", hash, "student")
     .lastInsertRowid as number;
-  insertUser.run("Priya Patel", "priya@lms.dev", hash, "student");
-  insertUser.run("Marcus Lee", "marcus@lms.dev", hash, "student");
+  const priyaId = insertUser.run("Priya Patel", "priya@lms.dev", hash, "student")
+    .lastInsertRowid as number;
+  const marcusId = insertUser.run("Marcus Lee", "marcus@lms.dev", hash, "student")
+    .lastInsertRowid as number;
   void adminId;
+
+  const insertGroup = db.prepare("INSERT INTO account_groups (name) VALUES (?)");
+  const staffGroup = insertGroup.run("Teaching Staff").lastInsertRowid as number;
+  const cohortGroup = insertGroup.run("Pilot Cohort").lastInsertRowid as number;
+  const addMember = db.prepare(
+    "INSERT INTO user_group_members (user_id, group_id) VALUES (?, ?)"
+  );
+  addMember.run(sarahId, staffGroup);
+  addMember.run(jamesId, staffGroup);
+  addMember.run(studentId, cohortGroup);
+  addMember.run(priyaId, cohortGroup);
+  addMember.run(marcusId, cohortGroup);
 
   const insertCourse = db.prepare(
     "INSERT INTO courses (title, description, category, level, color, instructor_id, published) VALUES (?, ?, ?, ?, ?, ?, 1)"

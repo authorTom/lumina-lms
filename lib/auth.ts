@@ -61,7 +61,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   if (Number(expires) < Date.now()) return null;
 
   const user = getDb()
-    .prepare("SELECT id, name, email, role FROM users WHERE id = ?")
+    .prepare("SELECT id, name, email, role FROM users WHERE id = ? AND disabled = 0")
     .get(Number(userId)) as SessionUser | undefined;
   return user ?? null;
 });

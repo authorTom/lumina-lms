@@ -280,10 +280,21 @@ export interface AdminUser {
   name: string;
   email: string;
   role: string;
+  disabled: number;
   created_at: string;
   enrollment_count: number;
   course_count: number;
+  group_names: string | null;
 }
+
+const ADMIN_USER_SELECT = `
+  SELECT u.id, u.name, u.email, u.role, u.disabled, u.created_at,
+         (SELECT COUNT(*) FROM enrollments e WHERE e.user_id = u.id) AS enrollment_count,
+         (SELECT COUNT(*) FROM courses c WHERE c.instructor_id = u.id AND c.deleted_at IS NULL) AS course_count,
+         (SELECT GROUP_CONCAT(g.name, ', ') FROM user_group_members m
+          JOIN account_groups g ON g.id = m.group_id WHERE m.user_id = u.id) AS group_names
+  FROM users u
+`;
 
 export function listAllCourses(): CourseSummary[] {
   return getDb()
@@ -301,15 +312,48 @@ export function listDeletedCourses(userId: number, isAdmin: boolean): CourseSumm
     .all(...(isAdmin ? [] : [userId])) as CourseSummary[];
 }
 
-export function listUsers(): AdminUser[] {
+export function listUsers(groupId?: number): AdminUser[] {
+  if (groupId) {
+    return getDb()
+      .prepare(
+        `${ADMIN_USER_SELECT}
+         JOIN user_group_members f ON f.user_id = u.id AND f.group_id = ?
+         ORDER BY u.created_at DESC`
+      )
+      .all(groupId) as AdminUser[];
+  }
+  return getDb()
+    .prepare(`${ADMIN_USER_SELECT} ORDER BY u.created_at DESC`)
+    .all() as AdminUser[];
+}
+
+export function getAdminUser(id: number): AdminUser | undefined {
+  return getDb()
+    .prepare(`${ADMIN_USER_SELECT} WHERE u.id = ?`)
+    .get(id) as AdminUser | undefined;
+}
+
+export interface AccountGroup {
+  id: number;
+  name: string;
+  member_count: number;
+}
+
+export function listGroups(): AccountGroup[] {
   return getDb()
     .prepare(
-      `SELECT u.id, u.name, u.email, u.role, u.created_at,
-              (SELECT COUNT(*) FROM enrollments e WHERE e.user_id = u.id) AS enrollment_count,
-              (SELECT COUNT(*) FROM courses c WHERE c.instructor_id = u.id) AS course_count
-       FROM users u ORDER BY u.created_at DESC`
+      `SELECT g.id, g.name,
+              (SELECT COUNT(*) FROM user_group_members m WHERE m.group_id = g.id) AS member_count
+       FROM account_groups g ORDER BY g.name`
     )
-    .all() as AdminUser[];
+    .all() as AccountGroup[];
+}
+
+export function userGroupIds(userId: number): Set<number> {
+  const rows = getDb()
+    .prepare("SELECT group_id FROM user_group_members WHERE user_id = ?")
+    .all(userId) as { group_id: number }[];
+  return new Set(rows.map((r) => r.group_id));
 }
 
 export function platformStats() {
