@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getLesson, getCourseOutline, completedLessonIds } from "@/lib/data";
+import { getLesson, getCourseOutline, completedLessonIds, isEnrolled } from "@/lib/data";
 import { requireUser } from "@/lib/auth";
 import { Markdown } from "@/components/markdown";
 import { CompleteButton } from "@/components/complete-button";
@@ -52,11 +52,15 @@ export default async function LessonPage({
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
           {lesson.title}
         </h1>
-        <CompleteButton
-          lessonId={lesson.id}
-          courseId={courseId}
-          completed={done.has(lesson.id)}
-        />
+        {isEnrolled(user.id, courseId) ? (
+          <CompleteButton
+            lessonId={lesson.id}
+            courseId={courseId}
+            completed={done.has(lesson.id)}
+          />
+        ) : (
+          <span className="badge bg-amber-100 text-amber-800">Previewing</span>
+        )}
       </div>
       <p className="mt-1 text-sm text-zinc-500">
         Lesson {index + 1} of {flat.length} · {lesson.duration_minutes} min

@@ -29,7 +29,8 @@ All demo accounts use the password `password123`:
 - **Learning experience** — lesson player with a course sidebar, markdown lesson content, optional YouTube/Vimeo embeds, mark-complete tracking, and prev/next navigation.
 - **Quizzes** — auto-graded multiple-choice quizzes per module with pass thresholds, per-question feedback, and attempt history. Correct answers never leave the server before submission.
 - **Student dashboard** — enrolled courses, progress bars, and completion stats.
-- **Instructor studio** — create courses, add modules/lessons/quizzes, edit lesson content, publish/unpublish, and view per-student progress.
+- **Instructor studio** — create courses, add modules/lessons/quizzes, edit lesson content, publish/unpublish, and view per-student progress. Lesson content is written in a markdown editor with a formatting toolbar and a live Preview tab that renders exactly like the lesson player.
+- **Staff preview** — admins and the owning instructor can view all course content (including drafts) without enrolling; a banner marks preview mode.
 - **Admin** — platform stats, user role management, and user deletion.
 
 ## Architecture

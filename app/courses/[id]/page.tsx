@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCourse, getCourseOutline, isEnrolled, countCompletedLessons } from "@/lib/data";
+import {
+  getCourse,
+  getCourseOutline,
+  isEnrolled,
+  countCompletedLessons,
+  getCourseInstructorId,
+} from "@/lib/data";
 import { getCurrentUser } from "@/lib/auth";
 import { enroll } from "@/lib/actions";
 import { bannerClass } from "@/lib/colors";
@@ -14,10 +20,14 @@ export default async function CoursePage({
   const { id } = await params;
   const courseId = Number(id);
   const course = getCourse(courseId);
-  if (!course || !course.published) notFound();
+  if (!course) notFound();
 
   const user = await getCurrentUser();
   const enrolled = user ? isEnrolled(user.id, courseId) : false;
+  const isStaff =
+    !!user && (user.role === "admin" || getCourseInstructorId(courseId) === user.id);
+  // Drafts are only visible to the owning instructor and admins.
+  if (!course.published && !isStaff) notFound();
   const outline = getCourseOutline(courseId);
   const completed = user && enrolled ? countCompletedLessons(user.id, courseId) : 0;
   const progressPct = course.lesson_count > 0 ? (completed / course.lesson_count) * 100 : 0;
@@ -98,6 +108,21 @@ export default async function CoursePage({
                 </p>
                 <Link href={`/learn/${course.id}`} className="btn-primary mt-4 w-full">
                   {completed > 0 ? "Continue learning" : "Start course"}
+                </Link>
+              </>
+            ) : isStaff ? (
+              <>
+                <p className="text-sm font-medium text-zinc-700">
+                  You {user!.role === "admin" ? "administer" : "teach"} this course
+                </p>
+                <p className="mt-1 text-sm text-zinc-500">
+                  View all content without enrolling.
+                </p>
+                <Link href={`/learn/${course.id}`} className="btn-primary mt-4 w-full">
+                  Preview content
+                </Link>
+                <Link href={`/instructor/courses/${course.id}`} className="btn-secondary mt-2 w-full">
+                  Manage course
                 </Link>
               </>
             ) : user ? (

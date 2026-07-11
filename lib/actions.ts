@@ -105,7 +105,9 @@ export async function submitQuiz(quizId: number, formData: FormData): Promise<Qu
   const user = await requireUser();
   const quiz = getQuiz(quizId);
   if (!quiz) throw new Error("Quiz not found");
-  if (!isEnrolled(user.id, quiz.course_id)) throw new Error("Not enrolled");
+  const isStaff =
+    user.role === "admin" || getCourseInstructorId(quiz.course_id) === user.id;
+  if (!isEnrolled(user.id, quiz.course_id) && !isStaff) throw new Error("Not enrolled");
 
   let correct = 0;
   const correctChoiceIds: number[] = [];

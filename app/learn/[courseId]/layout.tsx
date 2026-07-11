@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getCourse, getCourseOutline, completedLessonIds, bestAttempts, isEnrolled } from "@/lib/data";
+import {
+  getCourse,
+  getCourseOutline,
+  completedLessonIds,
+  bestAttempts,
+  isEnrolled,
+  getCourseInstructorId,
+} from "@/lib/data";
 import { requireUser } from "@/lib/auth";
 import { ProgressBar } from "@/components/progress-bar";
 
@@ -17,7 +24,12 @@ export default async function LearnLayout({
 
   const course = getCourse(courseId);
   if (!course) notFound();
-  if (!isEnrolled(user.id, courseId)) redirect(`/courses/${courseId}`);
+
+  // Admins and the owning instructor may view content without enrolling.
+  const enrolled = isEnrolled(user.id, courseId);
+  const isStaff =
+    user.role === "admin" || getCourseInstructorId(courseId) === user.id;
+  if (!enrolled && !isStaff) redirect(`/courses/${courseId}`);
 
   const outline = getCourseOutline(courseId);
   const done = completedLessonIds(user.id, courseId);
@@ -97,7 +109,23 @@ export default async function LearnLayout({
   );
 
   return (
-    <div className="mx-auto flex max-w-6xl gap-8 px-4 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-8">
+      {!enrolled && (
+        <div className="mb-6 flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
+          <span className="font-medium">Preview mode</span>
+          <span>
+            — you&apos;re viewing this course as {user.role === "admin" ? "an admin" : "its instructor"}{" "}
+            without enrolling.
+          </span>
+          <Link
+            href={`/instructor/courses/${courseId}`}
+            className="ml-auto font-medium text-amber-900 underline hover:text-amber-700"
+          >
+            Manage course
+          </Link>
+        </div>
+      )}
+      <div className="flex gap-8">
       <aside className="hidden w-72 shrink-0 lg:block">
         <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto pr-2">
           {sidebar}
@@ -111,6 +139,7 @@ export default async function LearnLayout({
           <div className="mt-3">{sidebar}</div>
         </details>
         {children}
+        </div>
       </div>
     </div>
   );

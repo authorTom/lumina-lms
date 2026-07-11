@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getLesson, getCourseInstructorId } from "@/lib/data";
 import { requireUser } from "@/lib/auth";
 import { updateLesson } from "@/lib/actions";
+import { ContentEditor } from "@/components/content-editor";
 
 export default async function EditLessonPage({
   params,
@@ -62,22 +63,23 @@ export default async function EditLessonPage({
           />
         </div>
         <div>
-          <label htmlFor="content" className="label">Content</label>
-          <textarea
-            id="content"
-            name="content"
-            rows={18}
-            defaultValue={lesson.content}
-            className="input font-mono text-xs leading-relaxed"
-          />
+          <span className="label">Content</span>
+          <ContentEditor name="content" defaultValue={lesson.content} rows={18} />
           <p className="mt-1 text-xs text-zinc-500">
-            Supports markdown basics: ## headings, **bold**, `code`, - lists, ``` code blocks.
+            Use the toolbar or type markdown directly; the Preview tab shows the lesson
+            exactly as students will see it.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <button className="btn-primary">Save lesson</button>
           <Link href={`/instructor/courses/${courseId}`} className="btn-secondary">
             Cancel
+          </Link>
+          <Link
+            href={`/learn/${courseId}/${lessonId}`}
+            className="ml-auto text-sm font-medium text-indigo-600 hover:text-indigo-800"
+          >
+            View in lesson player →
           </Link>
         </div>
       </form>

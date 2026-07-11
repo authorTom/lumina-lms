@@ -22,6 +22,7 @@ import {
   deleteQuestion,
 } from "@/lib/actions";
 import { CourseFields } from "@/components/course-fields";
+import { ContentEditor } from "@/components/content-editor";
 import { ConfirmButton } from "@/components/confirm-button";
 import { ProgressBar } from "@/components/progress-bar";
 
@@ -63,11 +64,12 @@ export default async function ManageCoursePage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {course.published === 1 && (
-            <Link href={`/courses/${courseId}`} className="btn-secondary">
-              View public page
-            </Link>
-          )}
+          <Link href={`/learn/${courseId}`} className="btn-secondary">
+            Preview content
+          </Link>
+          <Link href={`/courses/${courseId}`} className="btn-secondary">
+            View public page
+          </Link>
           <form action={togglePublish.bind(null, courseId)}>
             <button className={course.published ? "btn-secondary" : "btn-primary"}>
               {course.published ? "Unpublish" : "Publish"}
@@ -115,6 +117,12 @@ export default async function ManageCoursePage({
                     <span className="text-xs text-zinc-400">{lesson.duration_minutes} min</span>
                     <span className="ml-auto flex items-center gap-3">
                       <Link
+                        href={`/learn/${courseId}/${lesson.id}`}
+                        className="text-zinc-500 hover:text-zinc-800"
+                      >
+                        View
+                      </Link>
+                      <Link
                         href={`/instructor/courses/${courseId}/lessons/${lesson.id}`}
                         className="font-medium text-indigo-600 hover:text-indigo-800"
                       >
@@ -154,11 +162,10 @@ export default async function ManageCoursePage({
                     placeholder="Video URL (YouTube or Vimeo, optional)"
                     className="input"
                   />
-                  <textarea
+                  <ContentEditor
                     name="content"
-                    rows={5}
-                    placeholder={"Lesson content. Supports markdown basics: ## headings, **bold**, - lists, ``` code blocks."}
-                    className="input font-mono text-xs"
+                    rows={6}
+                    placeholder="Lesson content — use the toolbar or type markdown, and check the Preview tab."
                   />
                   <button className="btn-primary">Add lesson</button>
                 </form>
@@ -173,7 +180,15 @@ export default async function ManageCoursePage({
                         ✎ {quiz.title} · {quiz.questions.length} question
                         {quiz.questions.length === 1 ? "" : "s"}
                       </span>
-                      <span className="text-xs text-zinc-500">manage</span>
+                      <span className="flex items-center gap-3 text-xs">
+                        <Link
+                          href={`/learn/${courseId}/quiz/${quiz.id}`}
+                          className="text-zinc-500 hover:text-zinc-800"
+                        >
+                          View
+                        </Link>
+                        <span className="text-zinc-500">manage</span>
+                      </span>
                     </summary>
                     <div className="space-y-4 px-5 pb-5">
                       <ul className="space-y-2">
