@@ -7,6 +7,7 @@ export interface CourseSummary {
   category: string;
   color: string;
   image: string | null;
+  enrollment_policy: "open" | "assigned";
   published: number;
   deleted_at: string | null;
   instructor_id: number;
@@ -128,7 +129,7 @@ export interface ModuleOutline extends Module {
 }
 
 const COURSE_SUMMARY_SELECT = `
-  SELECT c.id, c.title, c.description, c.category, c.color, c.image, c.published,
+  SELECT c.id, c.title, c.description, c.category, c.color, c.image, c.enrollment_policy, c.published,
          c.deleted_at, c.instructor_id, u.name AS instructor_name,
          (SELECT COUNT(*) FROM lessons l JOIN modules m ON m.id = l.module_id WHERE m.course_id = c.id) AS lesson_count,
          (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = c.id) AS student_count,
@@ -318,6 +319,18 @@ export interface EnrolledStudent {
   email: string;
   enrolled_at: string;
   completed_count: number;
+}
+
+// Students available to allocate to a course (not yet enrolled).
+export function unenrolledStudents(courseId: number): { id: number; name: string; email: string }[] {
+  return getDb()
+    .prepare(
+      `SELECT id, name, email FROM users
+       WHERE role = 'student' AND disabled = 0
+         AND id NOT IN (SELECT user_id FROM enrollments WHERE course_id = ?)
+       ORDER BY name`
+    )
+    .all(courseId) as { id: number; name: string; email: string }[];
 }
 
 export function courseStudents(courseId: number): EnrolledStudent[] {

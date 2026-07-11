@@ -139,6 +139,21 @@ export default async function CoursePage({
                   </Link>
                 )}
               </>
+            ) : course.enrollment_policy === "assigned" ? (
+              <>
+                <p className="text-sm font-medium text-zinc-700">Enrollment by allocation</p>
+                <p className="mt-1 text-sm text-zinc-500">
+                  Access to this course is assigned by an instructor or administrator.
+                  {user
+                    ? " If you think you should have access, contact your instructor."
+                    : " Log in to check whether it has been assigned to you."}
+                </p>
+                {!user && (
+                  <Link href="/login" className="btn-secondary mt-4 w-full">
+                    Log in
+                  </Link>
+                )}
+              </>
             ) : user ? (
               <>
                 <p className="text-2xl font-bold text-zinc-900">Free</p>

@@ -51,6 +51,7 @@ function migrate(db: Database.Database) {
       level TEXT NOT NULL DEFAULT 'Beginner' CHECK (level IN ('Beginner','Intermediate','Advanced')),
       color TEXT NOT NULL DEFAULT 'indigo',
       image TEXT,
+      enrollment_policy TEXT NOT NULL DEFAULT 'open' CHECK (enrollment_policy IN ('open','assigned')),
       instructor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       published INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -178,6 +179,13 @@ function migrate(db: Database.Database) {
   const imgCols = db.prepare("PRAGMA table_info(courses)").all() as { name: string }[];
   if (!imgCols.some((c) => c.name === "image")) {
     db.exec("ALTER TABLE courses ADD COLUMN image TEXT");
+  }
+
+  // Migrate databases created before enrollment policies existed.
+  if (!imgCols.some((c) => c.name === "enrollment_policy")) {
+    db.exec(
+      "ALTER TABLE courses ADD COLUMN enrollment_policy TEXT NOT NULL DEFAULT 'open' CHECK (enrollment_policy IN ('open','assigned'))"
+    );
   }
 
   const userCount = db.prepare("SELECT COUNT(*) AS n FROM users").get() as { n: number };

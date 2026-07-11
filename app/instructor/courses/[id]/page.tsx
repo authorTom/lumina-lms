@@ -7,6 +7,8 @@ import {
   courseStudents,
   getCourseInstructorId,
   listScormPackages,
+  listGroups,
+  unenrolledStudents,
 } from "@/lib/data";
 import { requireUser } from "@/lib/auth";
 import {
@@ -21,6 +23,10 @@ import {
   addQuestion,
   deleteQuestion,
   attachScormLesson,
+  setEnrollmentPolicy,
+  allocateStudent,
+  allocateGroup,
+  removeEnrollment,
 } from "@/lib/actions";
 import { EditCourseForm } from "@/components/edit-course-form";
 import { ContentEditor } from "@/components/content-editor";
@@ -49,6 +55,8 @@ export default async function ManageCoursePage({
   const scormLibrary = listScormPackages();
 
   const students = courseStudents(courseId);
+  const candidates = unenrolledStudents(courseId);
+  const groups = listGroups();
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
@@ -335,12 +343,98 @@ export default async function ManageCoursePage({
         <button className="btn-primary shrink-0">+ Add module</button>
       </form>
 
-      {/* Students */}
+      {/* Enrollment */}
       <h2 className="mt-10 text-xl font-semibold tracking-tight text-zinc-900">
-        Students ({students.length})
+        Enrollment ({students.length})
       </h2>
+
+      <div className="card mt-4 space-y-5 p-5">
+        <form action={setEnrollmentPolicy} className="space-y-2">
+          <input type="hidden" name="course_id" value={courseId} />
+          <p className="text-sm font-medium text-zinc-900">Who can enroll?</p>
+          <label className="flex cursor-pointer items-start gap-2 text-sm text-zinc-700">
+            <input
+              type="radio"
+              name="policy"
+              value="open"
+              defaultChecked={course.enrollment_policy === "open"}
+              className="mt-0.5 accent-indigo-600"
+            />
+            <span>
+              <span className="font-medium">Self-enrollment</span> — any student can enroll
+              from the catalog.
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-2 text-sm text-zinc-700">
+            <input
+              type="radio"
+              name="policy"
+              value="assigned"
+              defaultChecked={course.enrollment_policy === "assigned"}
+              className="mt-0.5 accent-indigo-600"
+            />
+            <span>
+              <span className="font-medium">By allocation only</span> — students can&apos;t
+              self-enroll; you assign users or groups below.
+            </span>
+          </label>
+          <button className="btn-secondary">Save policy</button>
+        </form>
+
+        <div className="grid gap-4 border-t border-zinc-100 pt-4 sm:grid-cols-2">
+          <form action={allocateStudent} className="space-y-2">
+            <input type="hidden" name="course_id" value={courseId} />
+            <p className="text-sm font-medium text-zinc-900">Allocate a student</p>
+            {candidates.length === 0 ? (
+              <p className="text-sm text-zinc-500">Every student is already enrolled.</p>
+            ) : (
+              <div className="flex gap-2">
+                <select name="user_id" required className="input" defaultValue="">
+                  <option value="" disabled>
+                    Choose a student…
+                  </option>
+                  {candidates.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.email})
+                    </option>
+                  ))}
+                </select>
+                <button className="btn-primary shrink-0">Add</button>
+              </div>
+            )}
+          </form>
+          <form action={allocateGroup} className="space-y-2">
+            <input type="hidden" name="course_id" value={courseId} />
+            <p className="text-sm font-medium text-zinc-900">Allocate a group</p>
+            {groups.length === 0 ? (
+              <p className="text-sm text-zinc-500">
+                No groups yet — admins create them on the admin page.
+              </p>
+            ) : (
+              <div className="flex gap-2">
+                <select name="group_id" required className="input" defaultValue="">
+                  <option value="" disabled>
+                    Choose a group…
+                  </option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name} ({g.member_count} member{g.member_count === 1 ? "" : "s"})
+                    </option>
+                  ))}
+                </select>
+                <button className="btn-primary shrink-0">Enroll group</button>
+              </div>
+            )}
+            <p className="text-xs text-zinc-500">
+              Enrolls every current student in the group; people added to the group later
+              aren&apos;t enrolled automatically.
+            </p>
+          </form>
+        </div>
+      </div>
+
       {students.length === 0 ? (
-        <p className="card mt-4 p-6 text-sm text-zinc-500">No one has enrolled yet.</p>
+        <p className="card mt-4 p-6 text-sm text-zinc-500">No one is enrolled yet.</p>
       ) : (
         <div className="card mt-4 overflow-x-auto">
           <table className="w-full min-w-[520px] text-left text-sm">
@@ -349,6 +443,7 @@ export default async function ManageCoursePage({
                 <th className="px-5 py-3 font-medium">Student</th>
                 <th className="px-5 py-3 font-medium">Enrolled</th>
                 <th className="px-5 py-3 font-medium">Progress</th>
+                <th className="px-5 py-3 font-medium"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -366,6 +461,15 @@ export default async function ManageCoursePage({
                         <ProgressBar value={pct} className="w-28" />
                         <span className="text-xs text-zinc-600">{Math.round(pct)}%</span>
                       </div>
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      <ConfirmButton
+                        action={removeEnrollment.bind(null, s.id, courseId)}
+                        message={`Remove ${s.name} from this course? Their progress is kept and restored if they're re-enrolled.`}
+                        className="text-xs text-zinc-400 hover:text-red-600 cursor-pointer"
+                      >
+                        Remove
+                      </ConfirmButton>
                     </td>
                   </tr>
                 );

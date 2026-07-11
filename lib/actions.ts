@@ -109,6 +109,11 @@ export async function enroll(courseId: number) {
   const user = await requireUser();
   // Only students enroll; staff view content directly.
   if (user.role !== "student") redirect(`/learn/${courseId}`);
+  // Assigned-only courses can't be self-enrolled — staff allocate access.
+  const policy = getDb()
+    .prepare("SELECT enrollment_policy FROM courses WHERE id = ? AND deleted_at IS NULL")
+    .get(courseId) as { enrollment_policy: string } | undefined;
+  if (!policy || policy.enrollment_policy !== "open") redirect(`/courses/${courseId}`);
   getDb()
     .prepare("INSERT OR IGNORE INTO enrollments (user_id, course_id) VALUES (?, ?)")
     .run(user.id, courseId);
@@ -263,6 +268,64 @@ export async function updateCourse(_prev: FormState, formData: FormData): Promis
   revalidatePath(`/courses/${courseId}`);
   revalidatePath("/courses");
   return { ok: true };
+}
+
+// --- Enrollment allocation (staff) ---
+
+export async function setEnrollmentPolicy(formData: FormData) {
+  const courseId = Number(formData.get("course_id"));
+  const policy = String(formData.get("policy") ?? "");
+  if (!Number.isInteger(courseId) || !["open", "assigned"].includes(policy)) return;
+  await requireCourseOwner(courseId);
+  getDb().prepare("UPDATE courses SET enrollment_policy = ? WHERE id = ?").run(policy, courseId);
+  revalidatePath(`/instructor/courses/${courseId}`);
+  revalidatePath(`/courses/${courseId}`);
+}
+
+export async function allocateStudent(formData: FormData) {
+  const courseId = Number(formData.get("course_id"));
+  const userId = Number(formData.get("user_id"));
+  if (!Number.isInteger(courseId) || !Number.isInteger(userId)) return;
+  await requireCourseOwner(courseId);
+  const student = getDb()
+    .prepare("SELECT 1 FROM users WHERE id = ? AND role = 'student'")
+    .get(userId);
+  if (!student) return;
+  getDb()
+    .prepare("INSERT OR IGNORE INTO enrollments (user_id, course_id) VALUES (?, ?)")
+    .run(userId, courseId);
+  revalidatePath(`/instructor/courses/${courseId}`);
+}
+
+export async function allocateGroup(formData: FormData) {
+  const courseId = Number(formData.get("course_id"));
+  const groupId = Number(formData.get("group_id"));
+  if (!Number.isInteger(courseId) || !Number.isInteger(groupId)) return;
+  await requireCourseOwner(courseId);
+  const db = getDb();
+  const enrollAll = db.transaction(() => {
+    const members = db
+      .prepare(
+        `SELECT m.user_id FROM user_group_members m
+         JOIN users u ON u.id = m.user_id
+         WHERE m.group_id = ? AND u.role = 'student' AND u.disabled = 0`
+      )
+      .all(groupId) as { user_id: number }[];
+    const insert = db.prepare(
+      "INSERT OR IGNORE INTO enrollments (user_id, course_id) VALUES (?, ?)"
+    );
+    for (const m of members) insert.run(m.user_id, courseId);
+  });
+  enrollAll();
+  revalidatePath(`/instructor/courses/${courseId}`);
+}
+
+export async function removeEnrollment(userId: number, courseId: number) {
+  await requireCourseOwner(courseId);
+  getDb()
+    .prepare("DELETE FROM enrollments WHERE user_id = ? AND course_id = ?")
+    .run(userId, courseId);
+  revalidatePath(`/instructor/courses/${courseId}`);
 }
 
 export async function togglePublish(courseId: number) {
