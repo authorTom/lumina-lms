@@ -27,8 +27,8 @@ export default async function CoursePage({
   const isStaff = !!user && (user.role === "admin" || user.role === "instructor");
   const canManage =
     !!user && (user.role === "admin" || getCourseInstructorId(courseId) === user.id);
-  // Drafts are only visible to the owning instructor and admins.
-  if (!course.published && !canManage) notFound();
+  // Drafts are visible to staff (who can view all content); hidden from everyone else.
+  if (!course.published && !isStaff) notFound();
   const outline = getCourseOutline(courseId);
   const completed = user && enrolled ? countCompletedLessons(user.id, courseId) : 0;
   const progressPct = course.lesson_count > 0 ? (completed / course.lesson_count) * 100 : 0;
