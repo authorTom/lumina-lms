@@ -1,0 +1,18 @@
+services:
+  lumina:
+    build: .
+    image: lumina-lms
+    container_name: lumina-lms
+    ports:
+      - "3000:3000"
+    environment:
+      # Required in production — the app refuses to start signing sessions
+      # without it. Generate one with: openssl rand -base64 32
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required — set it in .env}
+    volumes:
+      # Persists the SQLite database, SCORM extracts, and uploaded images.
+      - lumina-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  lumina-data:

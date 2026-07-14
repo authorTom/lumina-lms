@@ -47,7 +47,9 @@ All demo accounts use the password `password123`:
 - `app/` — App Router pages; server components fetch data directly, small client components handle interactivity
 - `components/` — shared UI, including a dependency-free markdown renderer for lesson content
 
-Set `SESSION_SECRET` in the environment for production deployments.
+Set `SESSION_SECRET` in the environment for production deployments. In production
+(`NODE_ENV=production`) the app **requires** it and will refuse to sign sessions
+without it — generate one with `openssl rand -base64 32`.
 
 ## Production build
 
@@ -55,3 +57,46 @@ Set `SESSION_SECRET` in the environment for production deployments.
 npm run build
 npm start
 ```
+
+## Docker
+
+The app ships as a self-contained image built from Next.js [standalone output](https://nextjs.org/docs/app/api-reference/config/next-config-js/output):
+a multi-stage build that compiles the native SQLite module, then copies only the
+runtime server, static assets, and `public/` into a slim Debian base that runs as
+an unprivileged user.
+
+All state — the SQLite database, extracted SCORM packages, and uploaded images —
+lives under `/app/data`, which is exposed as a volume so it survives container
+restarts and image upgrades.
+
+### With Docker Compose (recommended)
+
+```bash
+cp .env.example .env          # then set SESSION_SECRET in .env
+docker compose up -d --build
+```
+
+The app is served on http://localhost:3000. Data is stored in the named volume
+`lumina-data`; the database is created and seeded on first request.
+
+### With plain Docker
+
+```bash
+docker build -t lumina-lms .
+docker run -d --name lumina \
+  -p 3000:3000 \
+  -e SESSION_SECRET="$(openssl rand -base64 32)" \
+  -v lumina-data:/app/data \
+  lumina-lms
+```
+
+Notes:
+
+- **`SESSION_SECRET` is required** — the container starts, but signing a session
+  (logging in) throws without it. Keep the value stable across deploys, or all
+  existing sessions are invalidated.
+- **Back up the volume**, not the container — everything persistent is in
+  `/app/data`.
+- The image defines a `HEALTHCHECK`; `docker ps` shows `healthy` once it's ready.
+- Uploads are capped at 200 MB (SCORM) via the server action body-size limit; put
+  a reverse proxy in front for TLS and its own request-size limits in production.
