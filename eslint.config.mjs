@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Extracted SCORM packages are vendored third-party bundles, not our source.
+    "data/**",
   ]),
 ]);
 

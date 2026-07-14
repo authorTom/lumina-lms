@@ -1,6 +1,24 @@
+import { headers } from "next/headers";
 import { getDb } from "./db";
 
 export type ActivityType = "login" | "course_view" | "lesson_view";
+
+// Link prefetches render the page server-side without the user actually
+// visiting it, which would inflate view counts. Next marks those requests, so
+// view logging can skip them.
+export async function isPrefetchRequest(): Promise<boolean> {
+  try {
+    const h = await headers();
+    return (
+      h.get("next-router-prefetch") === "1" ||
+      h.get("purpose") === "prefetch" ||
+      h.get("x-purpose") === "prefetch" ||
+      h.get("x-middleware-prefetch") === "1"
+    );
+  } catch {
+    return false;
+  }
+}
 
 export function logActivity(
   type: ActivityType,

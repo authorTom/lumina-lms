@@ -233,6 +233,12 @@ export function ScormPlayer({
             title="SCORM content"
             className="h-[70vh] w-full bg-white"
             allow="autoplay; fullscreen"
+            // Packages are third-party HTML/JS. allow-same-origin is required
+            // for the SCORM API discovery (content reads window.parent.API), and
+            // allow-scripts to run at all; the remaining grants cover typical
+            // course behaviour. We deliberately withhold allow-top-navigation so
+            // a package can't redirect the whole LMS to a phishing page.
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads allow-popups-to-escape-sandbox"
           />
         )}
       </div>

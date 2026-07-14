@@ -165,13 +165,14 @@ export default async function ManageUserPage({
           <div>
             <p className="font-medium text-zinc-900">Delete this user</p>
             <p className="text-sm text-zinc-500">
-              Removes the account, its enrollments and progress, and any courses it teaches.
-              Cannot be undone.
+              Removes the account, its enrollments, and its progress. Any courses this user
+              teaches are reassigned to you so enrolled students keep their access and
+              progress. Cannot be undone.
             </p>
           </div>
           <ConfirmButton
             action={deleteUser.bind(null, user.id)}
-            message={`Permanently delete ${user.name}? Their enrollments, progress, and any courses they teach will be removed. This cannot be undone.`}
+            message={`Permanently delete ${user.name}? Their enrollments and progress will be removed, and any courses they teach will be reassigned to you. This cannot be undone.`}
           >
             Delete user
           </ConfirmButton>

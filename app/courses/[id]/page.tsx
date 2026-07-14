@@ -9,7 +9,7 @@ import {
 } from "@/lib/data";
 import { getCurrentUser } from "@/lib/auth";
 import { enroll } from "@/lib/actions";
-import { logActivity } from "@/lib/analytics";
+import { logActivity, isPrefetchRequest } from "@/lib/analytics";
 import { bannerClass } from "@/lib/colors";
 import { ProgressBar } from "@/components/progress-bar";
 
@@ -31,7 +31,9 @@ export default async function CoursePage({
   // Drafts are visible to staff (who can view all content); hidden from everyone else.
   if (!course.published && !isStaff) notFound();
 
-  logActivity("course_view", { userId: user?.id, courseId });
+  if (!(await isPrefetchRequest())) {
+    logActivity("course_view", { userId: user?.id, courseId });
+  }
   const outline = getCourseOutline(courseId);
   const completed = user && enrolled ? countCompletedLessons(user.id, courseId) : 0;
   const progressPct = course.lesson_count > 0 ? (completed / course.lesson_count) * 100 : 0;

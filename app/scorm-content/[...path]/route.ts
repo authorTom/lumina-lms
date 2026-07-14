@@ -42,7 +42,10 @@ export async function GET(
   if (!user) return new NextResponse("Unauthorized", { status: 401 });
 
   const { path: parts } = await ctx.params;
-  const filePath = path.resolve(SCORM_ROOT, ...parts.map(decodeURIComponent));
+  // Next already URL-decodes catch-all segments; decoding again turns a literal
+  // "%" in a filename into a URIError (500). The traversal guard below is what
+  // keeps us inside the root.
+  const filePath = path.resolve(SCORM_ROOT, ...parts);
   // Never serve anything outside the SCORM content root.
   if (!filePath.startsWith(SCORM_ROOT + path.sep)) {
     return new NextResponse("Forbidden", { status: 403 });

@@ -1,16 +1,15 @@
 import Database from "better-sqlite3";
+import fs from "fs";
 import path from "path";
 import { seed } from "./seed";
 
 const DB_PATH = path.join(process.cwd(), "data", "lms.db");
 
 declare global {
-  // eslint-disable-next-line no-var
   var __lmsDb: Database.Database | undefined;
 }
 
 function createDb(): Database.Database {
-  const fs = require("fs") as typeof import("fs");
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   const db = new Database(DB_PATH);
   db.pragma("journal_mode = WAL");

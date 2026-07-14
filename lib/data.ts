@@ -199,6 +199,45 @@ export function isEnrolled(userId: number, courseId: number): boolean {
     .get(userId, courseId);
 }
 
+// Relationship guards: confirm a child row really belongs to the course whose
+// ownership the caller has already been checked against. Without these, an
+// instructor who owns course A could mutate content in course B by passing
+// A's id (which passes the ownership check) alongside B's lesson/quiz id.
+export function moduleInCourse(moduleId: number, courseId: number): boolean {
+  return !!getDb()
+    .prepare("SELECT 1 FROM modules WHERE id = ? AND course_id = ?")
+    .get(moduleId, courseId);
+}
+
+export function lessonInCourse(lessonId: number, courseId: number): boolean {
+  return !!getDb()
+    .prepare(
+      `SELECT 1 FROM lessons l JOIN modules m ON m.id = l.module_id
+       WHERE l.id = ? AND m.course_id = ?`
+    )
+    .get(lessonId, courseId);
+}
+
+export function quizInCourse(quizId: number, courseId: number): boolean {
+  return !!getDb()
+    .prepare(
+      `SELECT 1 FROM quizzes q JOIN modules m ON m.id = q.module_id
+       WHERE q.id = ? AND m.course_id = ?`
+    )
+    .get(quizId, courseId);
+}
+
+export function questionInCourse(questionId: number, courseId: number): boolean {
+  return !!getDb()
+    .prepare(
+      `SELECT 1 FROM questions qn
+       JOIN quizzes q ON q.id = qn.quiz_id
+       JOIN modules m ON m.id = q.module_id
+       WHERE qn.id = ? AND m.course_id = ?`
+    )
+    .get(questionId, courseId);
+}
+
 export function getEnrolledCourses(userId: number): CourseWithProgress[] {
   return getDb()
     .prepare(

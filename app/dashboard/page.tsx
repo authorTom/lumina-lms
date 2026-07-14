@@ -72,7 +72,11 @@ export default async function DashboardPage() {
                 />
                 <ConfirmButton
                   action={unenroll.bind(null, course.id)}
-                  message={`Unenroll from “${course.title}”? Your progress will be kept.`}
+                  message={
+                    course.enrollment_policy === "assigned"
+                      ? `Unenroll from “${course.title}”? This course is assigned by staff, so you won't be able to re-enroll yourself — you'd need an instructor or admin to add you back. Your progress is kept.`
+                      : `Unenroll from “${course.title}”? Your progress will be kept.`
+                  }
                   className="self-end text-xs text-zinc-400 hover:text-red-600 cursor-pointer"
                 >
                   Unenroll

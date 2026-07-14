@@ -5,13 +5,17 @@ import { redirect } from "next/navigation";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { getDb } from "./db";
-import { createSession, destroySession, getCurrentUser, requireUser } from "./auth";
+import { createSession, destroySession, requireUser } from "./auth";
 import {
   getCourseInstructorId,
   getLesson,
   getQuiz,
   getScormPackage,
   isEnrolled,
+  lessonInCourse,
+  moduleInCourse,
+  questionInCourse,
+  quizInCourse,
   recordCompletionIfFinished,
   scormPackageUsageCount,
 } from "./data";
@@ -103,6 +107,9 @@ export async function changePassword(_prev: FormState, formData: FormData): Prom
   getDb()
     .prepare("UPDATE users SET password_hash = ? WHERE id = ?")
     .run(bcrypt.hashSync(next, 10), user.id);
+  // The session token is bound to the old password hash; re-issue it so the
+  // user stays logged in on this device while other sessions are invalidated.
+  await createSession(user.id);
   return { ok: true };
 }
 
@@ -112,11 +119,14 @@ export async function enroll(courseId: number) {
   const user = await requireUser();
   // Only students enroll; staff view content directly.
   if (user.role !== "student") redirect(`/learn/${courseId}`);
-  // Assigned-only courses can't be self-enrolled — staff allocate access.
+  // Assigned-only or unpublished courses can't be self-enrolled — staff
+  // allocate access, and drafts aren't open to students at all.
   const policy = getDb()
-    .prepare("SELECT enrollment_policy FROM courses WHERE id = ? AND deleted_at IS NULL")
-    .get(courseId) as { enrollment_policy: string } | undefined;
-  if (!policy || policy.enrollment_policy !== "open") redirect(`/courses/${courseId}`);
+    .prepare("SELECT enrollment_policy, published FROM courses WHERE id = ? AND deleted_at IS NULL")
+    .get(courseId) as { enrollment_policy: string; published: number } | undefined;
+  if (!policy || !policy.published || policy.enrollment_policy !== "open") {
+    redirect(`/courses/${courseId}`);
+  }
   getDb()
     .prepare("INSERT OR IGNORE INTO enrollments (user_id, course_id) VALUES (?, ?)")
     .run(user.id, courseId);
@@ -135,6 +145,11 @@ export async function unenroll(courseId: number) {
 
 export async function toggleLessonComplete(lessonId: number, courseId: number, done: boolean) {
   const user = await requireUser();
+  // Only enrolled students track progress, and the lesson must belong to the
+  // course — otherwise anyone could mint a permanent training record for any
+  // course by marking its lessons complete.
+  if (!isEnrolled(user.id, courseId)) return;
+  if (!lessonInCourse(lessonId, courseId)) return;
   const db = getDb();
   if (done) {
     db.prepare("INSERT OR IGNORE INTO lesson_progress (user_id, lesson_id) VALUES (?, ?)").run(
@@ -423,6 +438,7 @@ export async function deleteModule(moduleId: number, courseId: number) {
 
 export async function addLesson(moduleId: number, courseId: number, formData: FormData) {
   await requireCourseOwner(courseId);
+  if (!moduleInCourse(moduleId, courseId)) return;
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
   const db = getDb();
@@ -619,6 +635,7 @@ export async function saveScormData(lessonId: number, cmiJson: string) {
 
 export async function updateLesson(lessonId: number, courseId: number, formData: FormData) {
   await requireCourseOwner(courseId);
+  if (!lessonInCourse(lessonId, courseId)) return;
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
   getDb()
@@ -639,6 +656,7 @@ export async function updateLesson(lessonId: number, courseId: number, formData:
 
 export async function deleteLesson(lessonId: number, courseId: number) {
   await requireCourseOwner(courseId);
+  if (!lessonInCourse(lessonId, courseId)) return;
   getDb().prepare("DELETE FROM lessons WHERE id = ?").run(lessonId);
   touchCourse(courseId);
   revalidatePath(`/instructor/courses/${courseId}`);
@@ -646,6 +664,7 @@ export async function deleteLesson(lessonId: number, courseId: number) {
 
 export async function createQuiz(moduleId: number, courseId: number, formData: FormData) {
   await requireCourseOwner(courseId);
+  if (!moduleInCourse(moduleId, courseId)) return;
   const title = String(formData.get("title") ?? "").trim() || "Module quiz";
   getDb()
     .prepare("INSERT OR IGNORE INTO quizzes (module_id, title) VALUES (?, ?)")
@@ -656,6 +675,7 @@ export async function createQuiz(moduleId: number, courseId: number, formData: F
 
 export async function deleteQuiz(quizId: number, courseId: number) {
   await requireCourseOwner(courseId);
+  if (!quizInCourse(quizId, courseId)) return;
   getDb().prepare("DELETE FROM quizzes WHERE id = ?").run(quizId);
   touchCourse(courseId);
   revalidatePath(`/instructor/courses/${courseId}`);
@@ -663,12 +683,17 @@ export async function deleteQuiz(quizId: number, courseId: number) {
 
 export async function addQuestion(quizId: number, courseId: number, formData: FormData) {
   await requireCourseOwner(courseId);
+  if (!quizInCourse(quizId, courseId)) return;
   const text = String(formData.get("text") ?? "").trim();
-  const choices = [0, 1, 2, 3]
-    .map((i) => String(formData.get(`choice_${i}`) ?? "").trim())
-    .filter(Boolean);
+  // Keep each choice's original form index so the "correct" radio (which refers
+  // to that index) still lines up after empty choices are dropped. Filtering
+  // first would misalign the flag when a middle choice is left blank.
   const correct = Number(formData.get("correct"));
-  if (!text || choices.length < 2 || isNaN(correct) || correct >= choices.length) return;
+  const choices = [0, 1, 2, 3]
+    .map((i) => ({ index: i, text: String(formData.get(`choice_${i}`) ?? "").trim() }))
+    .filter((c) => c.text);
+  if (!text || choices.length < 2) return;
+  if (!choices.some((c) => c.index === correct)) return; // correct must be a filled choice
 
   const db = getDb();
   const max = db
@@ -680,13 +705,16 @@ export async function addQuestion(quizId: number, courseId: number, formData: Fo
   const insertChoice = db.prepare(
     "INSERT INTO choices (question_id, text, is_correct, position) VALUES (?, ?, ?, ?)"
   );
-  choices.forEach((choice, i) => insertChoice.run(questionId, choice, i === correct ? 1 : 0, i));
+  choices.forEach((choice, position) =>
+    insertChoice.run(questionId, choice.text, choice.index === correct ? 1 : 0, position)
+  );
   touchCourse(courseId);
   revalidatePath(`/instructor/courses/${courseId}`);
 }
 
 export async function deleteQuestion(questionId: number, courseId: number) {
   await requireCourseOwner(courseId);
+  if (!questionInCourse(questionId, courseId)) return;
   getDb().prepare("DELETE FROM questions WHERE id = ?").run(questionId);
   touchCourse(courseId);
   revalidatePath(`/instructor/courses/${courseId}`);
@@ -800,7 +828,18 @@ export async function setUserRole(userId: number, role: string) {
 export async function deleteUser(userId: number) {
   const admin = await requireUser("admin");
   if (userId === admin.id) return;
-  getDb().prepare("DELETE FROM users WHERE id = ?").run(userId);
+  const db = getDb();
+  const removeUser = db.transaction(() => {
+    // Courses cascade-delete with their instructor, which would wipe other
+    // students' enrollments and progress. Reassign them to the acting admin
+    // first so the content and everyone's records survive.
+    db.prepare("UPDATE courses SET instructor_id = ? WHERE instructor_id = ?").run(
+      admin.id,
+      userId
+    );
+    db.prepare("DELETE FROM users WHERE id = ?").run(userId);
+  });
+  removeUser();
   revalidatePath("/admin");
   redirect("/admin");
 }
