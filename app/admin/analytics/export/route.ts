@@ -15,7 +15,10 @@ const REPORT_HEADERS: Record<string, string[]> = {
 function csv(rows: Record<string, unknown>[], fallbackHeaders: string[]): string {
   const headers = rows.length > 0 ? Object.keys(rows[0]) : fallbackHeaders;
   const escape = (value: unknown): string => {
-    const s = value === null || value === undefined ? "" : String(value);
+    let s = value === null || value === undefined ? "" : String(value);
+    // Neutralise spreadsheet formula injection: a leading =, +, -, @, or a
+    // control char makes Excel/Sheets evaluate user-controlled text as a formula.
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return [

@@ -9,21 +9,27 @@ import {
   getScormData,
 } from "@/lib/data";
 import { requireUser } from "@/lib/auth";
-import { logActivity } from "@/lib/analytics";
+import { logActivity, isPrefetchRequest } from "@/lib/analytics";
 import { Markdown } from "@/components/markdown";
 import { CompleteButton } from "@/components/complete-button";
 import { ScormPlayer } from "@/components/scorm-player";
+
+function hostIs(hostname: string, domain: string): boolean {
+  return hostname === domain || hostname.endsWith(`.${domain}`);
+}
 
 function toEmbedUrl(url: string): string | null {
   try {
     const u = new URL(url);
     if (u.hostname === "youtu.be") return `https://www.youtube.com/embed${u.pathname}`;
-    if (u.hostname.endsWith("youtube.com")) {
+    if (hostIs(u.hostname, "youtube.com")) {
       const id = u.searchParams.get("v");
       if (id) return `https://www.youtube.com/embed/${id}`;
-      if (u.pathname.startsWith("/embed/")) return url;
+      if (u.pathname.startsWith("/embed/")) {
+        return `https://www.youtube.com${u.pathname}${u.search}`;
+      }
     }
-    if (u.hostname.endsWith("vimeo.com")) {
+    if (hostIs(u.hostname, "vimeo.com")) {
       const id = u.pathname.split("/").filter(Boolean).pop();
       if (id && /^\d+$/.test(id)) return `https://player.vimeo.com/video/${id}`;
     }
@@ -46,7 +52,9 @@ export default async function LessonPage({
   const lesson = getLesson(lessonId);
   if (!lesson || lesson.course_id !== courseId) notFound();
 
-  logActivity("lesson_view", { userId: user.id, courseId, lessonId });
+  if (!(await isPrefetchRequest())) {
+    logActivity("lesson_view", { userId: user.id, courseId, lessonId });
+  }
 
   const flat = getCourseOutline(courseId).flatMap((m) => m.lessons);
   const index = flat.findIndex((l) => l.id === lessonId);
