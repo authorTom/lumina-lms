@@ -21,9 +21,12 @@ export function ContentEditor({
   const [tab, setTab] = useState<"write" | "preview">("write");
   const ref = useRef<HTMLTextAreaElement>(null);
 
-  function edit(
-    transform: (v: string, s: number, e: number) => [string, number, number]
-  ) {
+  // A transform takes (text, selectionStart, selectionEnd) and returns the new
+  // text plus the new selection. Transforms are pure; the ref is only touched
+  // in edit(), which runs from click handlers — never during render.
+  type Transform = (v: string, s: number, e: number) => [string, number, number];
+
+  function edit(transform: Transform) {
     const ta = ref.current;
     if (!ta) return;
     const [next, selStart, selEnd] = transform(ta.value, ta.selectionStart, ta.selectionEnd);
@@ -34,15 +37,17 @@ export function ContentEditor({
     });
   }
 
-  const wrap = (before: string, after: string, sample: string) => () =>
-    edit((v, s, e) => {
+  const wrap =
+    (before: string, after: string, sample: string): Transform =>
+    (v, s, e) => {
       const sel = v.slice(s, e) || sample;
       const next = v.slice(0, s) + before + sel + after + v.slice(e);
       return [next, s + before.length, s + before.length + sel.length];
-    });
+    };
 
-  const prefixLines = (prefix: (i: number) => string) => () =>
-    edit((v, s, e) => {
+  const prefixLines =
+    (prefix: (i: number) => string): Transform =>
+    (v, s, e) => {
       const start = v.lastIndexOf("\n", s - 1) + 1;
       const end = e > start ? e : s;
       const blockText = v.slice(start, end) || "List item";
@@ -52,26 +57,25 @@ export function ContentEditor({
         .join("\n");
       const next = v.slice(0, start) + prefixed + v.slice(end);
       return [next, start, start + prefixed.length];
-    });
+    };
 
-  const codeBlock = () =>
-    edit((v, s, e) => {
-      const sel = v.slice(s, e) || "code here";
-      const before = (s === 0 || v[s - 1] === "\n" ? "" : "\n") + "```\n";
-      const insert = before + sel + "\n```\n";
-      const next = v.slice(0, s) + insert + v.slice(e);
-      return [next, s + before.length, s + before.length + sel.length];
-    });
+  const codeBlock: Transform = (v, s, e) => {
+    const sel = v.slice(s, e) || "code here";
+    const before = (s === 0 || v[s - 1] === "\n" ? "" : "\n") + "```\n";
+    const insert = before + sel + "\n```\n";
+    const next = v.slice(0, s) + insert + v.slice(e);
+    return [next, s + before.length, s + before.length + sel.length];
+  };
 
-  const tools: { label: string; title: string; onClick: () => void }[] = [
-    { label: "H2", title: "Section heading", onClick: prefixLines(() => "## ") },
-    { label: "H3", title: "Subheading", onClick: prefixLines(() => "### ") },
-    { label: "B", title: "Bold", onClick: wrap("**", "**", "bold text") },
-    { label: "I", title: "Italic", onClick: wrap("*", "*", "italic text") },
-    { label: "<>", title: "Inline code", onClick: wrap("`", "`", "code") },
-    { label: "• List", title: "Bullet list", onClick: prefixLines(() => "- ") },
-    { label: "1. List", title: "Numbered list", onClick: prefixLines((i) => `${i + 1}. `) },
-    { label: "{ }", title: "Code block", onClick: codeBlock },
+  const tools: { label: string; title: string; transform: Transform }[] = [
+    { label: "H2", title: "Section heading", transform: prefixLines(() => "## ") },
+    { label: "H3", title: "Subheading", transform: prefixLines(() => "### ") },
+    { label: "B", title: "Bold", transform: wrap("**", "**", "bold text") },
+    { label: "I", title: "Italic", transform: wrap("*", "*", "italic text") },
+    { label: "<>", title: "Inline code", transform: wrap("`", "`", "code") },
+    { label: "• List", title: "Bullet list", transform: prefixLines(() => "- ") },
+    { label: "1. List", title: "Numbered list", transform: prefixLines((i) => `${i + 1}. `) },
+    { label: "{ }", title: "Code block", transform: codeBlock },
   ];
 
   return (
@@ -97,7 +101,7 @@ export function ContentEditor({
             key={tool.title}
             type="button"
             title={tool.title}
-            onClick={tool.onClick}
+            onClick={() => edit(tool.transform)}
             disabled={tab === "preview"}
             className="rounded-md px-2 py-1 font-mono text-xs font-medium text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 disabled:opacity-40 cursor-pointer"
           >

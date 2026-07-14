@@ -190,6 +190,10 @@ export function ScormPlayer({
     const w = window as unknown as Record<string, unknown>;
     if (is12) w.API = api12;
     else w.API_1484_11 = api2004;
+    // The iframe must not mount until the SCORM API object exists on window —
+    // content discovers it synchronously as it loads. Gating render on this
+    // effect is deliberate, not derivable state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setReady(true);
 
     // Safety net: SCOs that rarely commit still get saved periodically,

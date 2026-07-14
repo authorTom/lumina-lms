@@ -45,7 +45,7 @@ export default async function ReviewsPage() {
       </Link>
       <h1 className="mt-2 text-3xl font-bold tracking-tight text-zinc-900">Course reviews</h1>
       <p className="mt-1 text-zinc-500">
-        Keep content current: each course's review clock runs from its last review (or
+        Keep content current: each course&apos;s review clock runs from its last review (or
         creation), using the review period set in its details.
       </p>
 

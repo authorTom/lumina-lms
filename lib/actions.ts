@@ -782,7 +782,7 @@ export async function setPassword(userId: number, _prev: FormState, formData: Fo
   getDb()
     .prepare("UPDATE users SET password_hash = ? WHERE id = ?")
     .run(bcrypt.hashSync(password, 10), userId);
-  return { error: undefined };
+  return { ok: true };
 }
 
 export async function createGroup(formData: FormData) {

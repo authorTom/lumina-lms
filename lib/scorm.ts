@@ -38,7 +38,7 @@ interface ParsedManifest {
   launchHref: string;
 }
 
-export function parseManifest(xml: string): ParsedManifest {
+function parseManifest(xml: string): ParsedManifest {
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: "@_",

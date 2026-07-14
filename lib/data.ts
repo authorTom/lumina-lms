@@ -379,14 +379,6 @@ export function bestAttempts(userId: number, courseId: number): Map<number, Quiz
 
 // --- Instructor ---
 
-export function coursesByInstructor(instructorId: number): CourseSummary[] {
-  return getDb()
-    .prepare(
-      `${COURSE_SUMMARY_SELECT} WHERE c.instructor_id = ? AND c.deleted_at IS NULL ORDER BY c.created_at DESC`
-    )
-    .all(instructorId) as CourseSummary[];
-}
-
 export interface EnrolledStudent {
   id: number;
   name: string;
