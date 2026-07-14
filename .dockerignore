@@ -1,0 +1,33 @@
+# Build artifacts and dependencies (reinstalled/rebuilt in the image)
+node_modules
+.next
+out
+build
+
+# Runtime data — must never be baked into the image
+data
+
+# Version control and CI
+.git
+.github
+.gitignore
+
+# Local env and secrets
+.env
+.env*.local
+
+# Editor / OS noise
+.vscode
+.idea
+.DS_Store
+*.log
+
+# Docker files themselves
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Docs and misc
+README.md
+*.md
+tsconfig.tsbuildinfo
