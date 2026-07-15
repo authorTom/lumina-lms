@@ -37,10 +37,9 @@ ENV NODE_ENV=production \
 RUN groupadd --gid 1001 nodejs \
   && useradd --uid 1001 --gid nodejs --no-create-home --shell /usr/sbin/nologin nextjs
 
-# Standalone server + the assets it does not inline (static chunks, public/).
+# Standalone server + the assets it does not inline (static chunks).
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Writable, persistable data directory (SQLite DB, SCORM extracts, uploads).
 RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
