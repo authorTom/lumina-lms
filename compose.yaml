@@ -1,0 +1,46 @@
+# Lumina LMS - Docker Compose deployment.
+#
+# Default behaviour: pull the prebuilt, multi-arch image published to the
+# GitHub Container Registry by .github/workflows/docker-publish.yml. No source
+# checkout is needed - this file plus a .env is enough to deploy.
+#
+# Compose automatically reads a sibling .env file for the ${VAR} values below.
+# Copy .env.example to .env and set SESSION_SECRET before deploying.
+
+services:
+  lumina:
+    # Prebuilt image (GHCR forces the owner/repo path to lowercase).
+    image: ghcr.io/authortom/lumina-lms:latest
+
+    # --- Build from source instead of pulling ---------------------------------
+    # Comment out the `image:` line above and uncomment the block below, then
+    # run `docker compose up -d --build`. Requires the full repository present
+    # as the build context (i.e. run it from a git checkout, not a bare file).
+    # build:
+    #   context: .
+
+    container_name: lumina-lms
+    init: true                # proper PID 1: signal forwarding + zombie reaping
+    restart: unless-stopped
+    ports:
+      - "3000:3000"           # quoted so YAML never reads it as a base-60 number
+    environment:
+      # Signs session cookies. REQUIRED in production - the app refuses to sign
+      # sessions without it. Generate one with: openssl rand -base64 32
+      # Quoted because the ${VAR:?message} syntax contains a colon.
+      SESSION_SECRET: "${SESSION_SECRET:?SESSION_SECRET is required - set it in .env}"
+    volumes:
+      # Named volume persists the SQLite DB, SCORM extracts, and uploads.
+      - lumina-data:/app/data
+    healthcheck:
+      # Exec form (JSON array): needs no shell and sidesteps the YAML
+      # colon-space trap. Node 20 ships global fetch; this slim image has
+      # no curl/wget to probe with.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  lumina-data:

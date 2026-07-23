@@ -25,6 +25,7 @@ data
 # Docker files themselves
 Dockerfile
 .dockerignore
+compose.yaml
 docker-compose.yml
 
 # Docs and misc

@@ -117,13 +117,44 @@ restarts and image upgrades.
 
 ### With Docker Compose (recommended)
 
+The published image means you can deploy on any server with Docker — no source
+checkout, no local build. You need just two files side by side: `compose.yaml`
+and a `.env` holding your `SESSION_SECRET`.
+
+```bash
+# Fetch the compose file
+curl -fsSL https://raw.githubusercontent.com/authorTom/lumina-lms/main/compose.yaml -o compose.yaml
+
+# Create .env and set a strong session secret
+printf 'SESSION_SECRET=%s\n' "$(openssl rand -base64 32)" > .env
+
+# Pull the prebuilt image and start
+docker compose pull
+docker compose up -d
+```
+
+The app is served on http://localhost:3000. Compose automatically reads the
+sibling `.env` for `SESSION_SECRET`. Data is stored in the named volume
+`lumina-data`; the database is created and seeded on first request. Run
+`docker compose ps` — the container shows `healthy` once it's ready.
+
+Deploying through a UI such as **Dockge** or **Portainer**? Paste the contents
+of `compose.yaml` into the stack editor and add `SESSION_SECRET` in the stack's
+environment/`.env` field. The stack pulls `ghcr.io/authortom/lumina-lms:latest`
+directly — nothing is built on the server.
+
+To upgrade later: `docker compose pull && docker compose up -d`.
+
+#### Build from source instead
+
+To build the image locally rather than pull it, edit `compose.yaml` — comment
+out the `image:` line and uncomment the `build:` block — then run from a full
+checkout of this repository:
+
 ```bash
 cp .env.example .env          # then set SESSION_SECRET in .env
 docker compose up -d --build
 ```
-
-The app is served on http://localhost:3000. Data is stored in the named volume
-`lumina-data`; the database is created and seeded on first request.
 
 ### With plain Docker
 
